@@ -33,68 +33,76 @@ class PropertiesPanel:
         self._create_property_fields()
 
     def _create_property_fields(self):
-        """Create buttons and fields for the current upgrade."""
-        self.buttons = []
+      """Create buttons and fields for the current upgrade."""
+      self.buttons = []
 
-        if not self.upgrade:
-            return
+      if not self.upgrade:
+          return
 
-        # Delete button at the top
-        self.buttons.append({
-            'id': 'delete',
-            'label': '🗑️ Delete Node',
-            'x': self.x + 10,
-            'y': self.y + self.height - 40,
-            'width': self.width - 20,
-            'height': 30,
-            'color': (150, 50, 50)
-        })
+      # Delete button at the top
+      self.buttons.append({
+          'id': 'delete',
+          'label': '🗑️ Delete Node',
+          'x': self.x + 10,
+          'y': self.y + self.height - 40,
+          'width': self.width - 20,
+          'height': 30,
+          'color': (150, 50, 50)
+      })
 
-        # Add effect button
-        self.buttons.append({
-            'id': 'add_effect',
-            'label': '+ Add Effect',
-            'x': self.x + 10,
-            'y': self.y + 200,
-            'width': (self.width - 30) // 2,
-            'height': 25,
-            'color': (50, 100, 150)
-        })
+      # Calculate positions for effects section
+      effects_start_y = self.y + self.height - 400  # Adjust this base position
 
-        # Add cost button
-        self.buttons.append({
-            'id': 'add_cost',
-            'label': '+ Add Cost',
-            'x': self.x + self.width // 2 + 5,
-            'y': self.y + 200,
-            'width': (self.width - 30) // 2,
-            'height': 25,
-            'color': (150, 100, 50)
-        })
+      # Add effect button
+      self.buttons.append({
+          'id': 'add_effect',
+          'label': '+ Add Effect',
+          'x': self.x + 10,
+          'y': effects_start_y - 30,
+          'width': (self.width - 30) // 2,
+          'height': 25,
+          'color': (50, 100, 150)
+      })
 
-        # Remove buttons for effects
-        for i in range(len(self.upgrade.effects)):
-            self.buttons.append({
-                'id': f'remove_effect_{i}',
-                'label': '✕',
-                'x': self.x + self.width - 35,
-                'y': self.y + 150 - (i * 60),
-                'width': 25,
-                'height': 25,
-                'color': (150, 50, 50)
-            })
+      # Add cost button
+      self.buttons.append({
+          'id': 'add_cost',
+          'label': '+ Add Cost',
+          'x': self.x + self.width // 2 + 5,
+          'y': effects_start_y - 30,
+          'width': (self.width - 30) // 2,
+          'height': 25,
+          'color': (150, 100, 50)
+      })
 
-        # Remove buttons for costs
-        for i in range(len(self.upgrade.cost)):
-            self.buttons.append({
-                'id': f'remove_cost_{i}',
-                'label': '✕',
-                'x': self.x + self.width - 35,
-                'y': self.y + 150 - (len(self.upgrade.effects) * 60) - (i * 40),
-                'width': 25,
-                'height': 25,
-                'color': (150, 50, 50)
-            })
+      # Remove buttons for effects - aligned with effect boxes
+      effect_y = effects_start_y
+      for i in range(len(self.upgrade.effects)):
+          self.buttons.append({
+              'id': f'remove_effect_{i}',
+              'label': '✕',
+              'x': self.x + self.width - 35,
+              'y': effect_y - 50,  # Align with the top of the effect box
+              'width': 25,
+              'height': 25,
+              'color': (150, 50, 50)
+          })
+          effect_y -= 60  # Match the spacing in _draw_effect
+
+      # Remove buttons for costs
+      cost_y = effect_y - 40
+      for i in range(len(self.upgrade.cost)):
+          self.buttons.append({
+              'id': f'remove_cost_{i}',
+              'label': '✕',
+              'x': self.x + self.width - 35,
+              'y': cost_y - 30,  # Align with the top of the cost box
+              'width': 25,
+              'height': 25,
+              'color': (150, 50, 50)
+          })
+          cost_y -= 40  # Match the spacing in _draw_cost
+
 
     def draw(self):
         """Draw the properties panel."""
@@ -137,7 +145,7 @@ class PropertiesPanel:
             self._draw_button(button)
 
         # Draw properties
-        current_y = self.y + self.height - 80 + self.scroll_y
+        current_y = self.y + self.height - 120 + self.scroll_y
         padding = 10
 
         # ID (read-only)
@@ -175,15 +183,9 @@ class PropertiesPanel:
         current_y -= 60
 
         # Effects section
-        effects_label = Label(
-            "Effects:",
-            x=self.x + padding,
-            y=current_y,
-            font_size=12,
-            color=(100, 200, 255, 255)
-        )
-        effects_label.draw()
-        current_y -= 30
+        effects_start_y = self.y + self.height - 400 + self.scroll_y
+        self._draw_field_label("Effects:", "", self.x + padding, effects_start_y)
+        current_y = effects_start_y - 30
 
         for i, effect in enumerate(self.upgrade.effects):
             self._draw_effect(i, effect, self.x + padding, current_y)
@@ -192,15 +194,12 @@ class PropertiesPanel:
         current_y -= 20
 
         # Costs section
-        costs_label = Label(
-            "Costs:",
-            x=self.x + padding,
-            y=current_y,
-            font_size=12,
-            color=(255, 220, 100, 255)
-        )
-        costs_label.draw()
+        self._draw_field_label("Costs:", "", self.x + padding, current_y)
         current_y -= 30
+
+        for i, cost in enumerate(self.upgrade.cost):
+            self._draw_cost(i, cost, self.x + padding, current_y)
+            current_y -= 40
 
         for i, cost in enumerate(self.upgrade.cost):
             self._draw_cost(i, cost, self.x + padding, current_y)

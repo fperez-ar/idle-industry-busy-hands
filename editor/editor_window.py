@@ -8,9 +8,9 @@ import yaml, time
 import os
 
 from loader import Upgrade, Effect, ResourceCost, UpgradeTree
-from ui.editor_sidebar import EditorSidebar
-from ui.editor_properties import PropertiesPanel
-from ui.editor_canvas import EditorCanvas
+from editor.editor_sidebar import EditorSidebar
+from editor.editor_properties import PropertiesPanel
+from editor.editor_canvas import EditorCanvas
 
 
 class EditorWindow(Window):
@@ -61,6 +61,7 @@ class EditorWindow(Window):
         self.sidebar.on_load_tree = self.load_tree
         self.sidebar.on_save_tree = self.save_tree
         self.sidebar.on_add_node = self.add_node
+        self.sidebar.on_auto_layout = self.auto_layout_tree
 
         self.properties_panel.on_property_changed = self.on_property_changed
         self.properties_panel.on_delete_node = self.delete_selected_node
@@ -120,7 +121,7 @@ class EditorWindow(Window):
             self.current_tree_file = filepath
             self.selected_node_id = None
             self.connecting_from = None
-
+            self.auto_layout_tree()
             print(f"✓ Loaded tree from: {filepath}")
 
         except Exception as e:
@@ -198,6 +199,7 @@ class EditorWindow(Window):
 
         self.nodes[upgrade_id] = node
         self.select_node(upgrade_id)
+        self.auto_layout_tree()
 
         print(f"➕ Added node: {upgrade_id}")
 
@@ -344,8 +346,10 @@ class EditorWindow(Window):
         self.canvas.on_mouse_release(x, y, button, modifiers)
 
     def on_mouse_scroll(self, x: int, y: int, scroll_x: float, scroll_y: float):
-        """Handle mouse scroll."""
-        self.canvas.on_mouse_scroll(x, y, scroll_x, scroll_y)
+      """Handle mouse scroll."""
+      if self.sidebar.on_mouse_scroll(x, y, scroll_x, scroll_y):
+          return
+      self.canvas.on_mouse_scroll(x, y, scroll_x, scroll_y)
 
     def on_key_press(self, symbol: int, modifiers: int):
         """Handle key press."""
@@ -388,6 +392,9 @@ class EditorWindow(Window):
             self.canvas.camera.y = 0
             self.canvas.camera.zoom = 1.0
             print("📷 Camera reset")
+        # L - Layout tree
+        elif symbol == key.L:
+            self.auto_layout_tree()
 
     def on_resize(self, width: int, height: int):
         """Handle window resize."""
@@ -408,6 +415,57 @@ class EditorWindow(Window):
         """Handle text motion."""
         self.properties_panel.on_text_motion(motion)
 
+    def auto_layout_tree(self):
+        """Automatically layout nodes in a tree structure based on tiers and dependencies."""
+        if not self.nodes:
+            return
+
+        # Group nodes by tier
+        tiers = {}
+        for node_id, node in self.nodes.items():
+            tier = node.upgrade.tier
+            if tier not in tiers:
+                tiers[tier] = []
+            tiers[tier].append(node)
+
+        # Layout parameters (matching game view)
+        node_width = 220
+        node_height = 90
+        h_spacing = 50
+        v_spacing = 80
+
+        # Position nodes by tier (bottom-up: tier 0 at bottom)
+        for tier, nodes_in_tier in tiers.items():
+            # Sort by exclusive group for consistent layout
+            nodes_in_tier.sort(key=lambda n: (n.upgrade.exclusive_group or '', n.upgrade.id))
+
+            # Calculate row width
+            row_width = len(nodes_in_tier) * node_width + (len(nodes_in_tier) - 1) * h_spacing
+            start_x = -row_width / 2
+
+            # Vertical position (tier 0 at y=0, higher tiers above)
+            tier_y = tier * (node_height + v_spacing)
+
+            # Position each node
+            for i, node in enumerate(nodes_in_tier):
+                node_x = start_x + i * (node_width + h_spacing)
+                node.x = node_x
+                node.y = tier_y
+
+                if self.on_node_moved:
+                    self.on_node_moved(node.upgrade.id, node_x, tier_y)
+
+        # Center camera on the tree
+        if self.nodes:
+            min_x = min(n.x for n in self.nodes.values())
+            max_x = max(n.x for n in self.nodes.values())
+            min_y = min(n.y for n in self.nodes.values())
+            max_y = max(n.y for n in self.nodes.values())
+
+            self.canvas.camera.x = (min_x + max_x) / 2
+            self.canvas.camera.y = (min_y + max_y) / 2
+
+        print("\tAuto-layout applied")
 
 class EditorNode:
     """A node in the editor representing an upgrade."""
