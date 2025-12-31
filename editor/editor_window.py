@@ -353,13 +353,20 @@ class EditorWindow(Window):
 
     def on_key_press(self, symbol: int, modifiers: int):
         """Handle key press."""
+
+        # Check if properties panel is in editing mode
+        if self.properties_panel.is_editing:
+            # Only handle ESC to exit editing mode
+            if symbol == key.ESCAPE:
+                self.properties_panel.active_field = None
+                self.properties_panel.is_editing = False
+            return  # Don't process other keys while editing
+
         if symbol == key.ESCAPE:
             current_time = time.time()
             if hasattr(self, '_last_escape_time') and current_time - self._last_escape_time < 0.3:
-                # Double press detected - quit
                 pyglet.app.exit()
             else:
-                # Single press - existing behavior
                 if self.connecting_from:
                     self.connecting_from = None
                     print("Connection cancelled")
@@ -367,32 +374,27 @@ class EditorWindow(Window):
                     self.select_node(None)
             self._last_escape_time = current_time
 
-        # Delete - Delete selected node
         elif symbol == key.DELETE or symbol == key.BACKSPACE:
             if self.selected_node_id:
                 self.delete_selected_node()
 
-        # Ctrl+S - Save
         elif symbol == key.S and (modifiers & key.MOD_CTRL):
             self.save_tree()
 
-        # Ctrl+N - New tree
         elif symbol == key.N and (modifiers & key.MOD_CTRL):
             self.new_tree()
 
-        # C - Start connection mode
         elif symbol == key.C:
             if self.selected_node_id:
                 self.connecting_from = self.selected_node_id
                 print(f"🔗 Connecting from: {self.connecting_from}")
 
-        # R - Reset camera
         elif symbol == key.R:
             self.canvas.camera.x = 0
             self.canvas.camera.y = 0
             self.canvas.camera.zoom = 1.0
             print("📷 Camera reset")
-        # L - Layout tree
+
         elif symbol == key.L:
             self.auto_layout_tree()
 

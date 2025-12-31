@@ -3,8 +3,16 @@
 import pyglet
 from pyglet.text import Label
 from pyglet.shapes import Rectangle
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 from loader import Upgrade, Effect, ResourceCost
+
+# Layout constants
+PADDING = 25
+FIELD_HEIGHT = 35
+MULTILINE_HEIGHT = 60
+SECTION_SPACING = 40
+EFFECT_HEIGHT = 100
+COST_HEIGHT = 70
 
 
 class PropertiesPanel:
@@ -21,6 +29,9 @@ class PropertiesPanel:
         self.scroll_y = 0
         self.active_field: Optional[str] = None
 
+        # State machine for editing
+        self.is_editing = False  # True when actively editing a text field
+
         # Callbacks
         self.on_property_changed: Optional[Callable[[Upgrade], None]] = None
         self.on_delete_node: Optional[Callable[[], None]] = None
@@ -29,80 +40,31 @@ class PropertiesPanel:
         """Set the upgrade to display/edit."""
         self.upgrade = upgrade
         self.active_field = None
+        self.is_editing = False
         self.scroll_y = 0
-        self._create_property_fields()
+        self._create_buttons()
 
-    def _create_property_fields(self):
-      """Create buttons and fields for the current upgrade."""
-      self.buttons = []
+    def _create_buttons(self):
+        """Create buttons for the current upgrade."""
+        self.buttons = []
 
-      if not self.upgrade:
-          return
+        if not self.upgrade:
+            return
 
-      # Delete button at the top
-      self.buttons.append({
-          'id': 'delete',
-          'label': '🗑️ Delete Node',
-          'x': self.x + 10,
-          'y': self.y + self.height - 40,
-          'width': self.width - 20,
-          'height': 30,
-          'color': (150, 50, 50)
-      })
+        # Delete button at the top
+        self.buttons.append({
+            'id': 'delete',
+            'label': '🗑️ Delete Node',
+            'x': self.x + PADDING,
+            'y': self.y + self.height - 50,
+            'width': self.width - PADDING * 2,
+            'height': 35,
+            'color': (150, 50, 50)
+        })
 
-      # Calculate positions for effects section
-      effects_start_y = self.y + self.height - 400  # Adjust this base position
-
-      # Add effect button
-      self.buttons.append({
-          'id': 'add_effect',
-          'label': '+ Add Effect',
-          'x': self.x + 10,
-          'y': effects_start_y - 30,
-          'width': (self.width - 30) // 2,
-          'height': 25,
-          'color': (50, 100, 150)
-      })
-
-      # Add cost button
-      self.buttons.append({
-          'id': 'add_cost',
-          'label': '+ Add Cost',
-          'x': self.x + self.width // 2 + 5,
-          'y': effects_start_y - 30,
-          'width': (self.width - 30) // 2,
-          'height': 25,
-          'color': (150, 100, 50)
-      })
-
-      # Remove buttons for effects - aligned with effect boxes
-      effect_y = effects_start_y
-      for i in range(len(self.upgrade.effects)):
-          self.buttons.append({
-              'id': f'remove_effect_{i}',
-              'label': '✕',
-              'x': self.x + self.width - 35,
-              'y': effect_y - 50,  # Align with the top of the effect box
-              'width': 25,
-              'height': 25,
-              'color': (150, 50, 50)
-          })
-          effect_y -= 60  # Match the spacing in _draw_effect
-
-      # Remove buttons for costs
-      cost_y = effect_y - 40
-      for i in range(len(self.upgrade.cost)):
-          self.buttons.append({
-              'id': f'remove_cost_{i}',
-              'label': '✕',
-              'x': self.x + self.width - 35,
-              'y': cost_y - 30,  # Align with the top of the cost box
-              'width': 25,
-              'height': 25,
-              'color': (150, 50, 50)
-          })
-          cost_y -= 40  # Match the spacing in _draw_cost
-
+    def _get_content_start_y(self) -> int:
+        """Get the starting Y position for content below the delete button."""
+        return self.y + self.height - 100 + self.scroll_y
 
     def draw(self):
         """Draw the properties panel."""
@@ -118,7 +80,7 @@ class PropertiesPanel:
         title = Label(
             "Properties",
             x=self.x + self.width // 2,
-            y=self.y + self.height - 15,
+            y=self.y + self.height - 20,
             anchor_x='center',
             anchor_y='center',
             font_size=14,
@@ -127,7 +89,6 @@ class PropertiesPanel:
         title.draw()
 
         if not self.upgrade:
-            # No selection message
             no_selection = Label(
                 "No node selected",
                 x=self.x + self.width // 2,
@@ -140,242 +101,328 @@ class PropertiesPanel:
             no_selection.draw()
             return
 
-        # Draw buttons
+        # Draw delete button
         for button in self.buttons:
-            self._draw_button(button)
+            if button['id'] == 'delete':
+                self._draw_button(button)
 
-        # Draw properties
-        current_y = self.y + self.height - 120 + self.scroll_y
-        padding = 10
+        current_y = self._get_content_start_y()
 
         # ID (read-only)
-        self._draw_field_label("ID:", self.upgrade.id, self.x + padding, current_y, read_only=True)
-        current_y -= 40
+        current_y = self._draw_labeled_field("ID:", 'id', self.upgrade.id, current_y, read_only=True)
+        current_y -= PADDING
 
         # Name
-        self._draw_field_label("Name:", "", self.x + padding, current_y)
-        current_y -= 20
-        self._draw_field_input('name', self.upgrade.name, self.x + padding, current_y)
-        current_y -= 40
+        current_y = self._draw_labeled_field("Name:", 'name', self.upgrade.name, current_y)
+        current_y -= PADDING
 
         # Description
-        self._draw_field_label("Description:", "", self.x + padding, current_y)
-        current_y -= 20
-        self._draw_field_input('description', self.upgrade.description, self.x + padding, current_y, multiline=True)
-        current_y -= 60
+        current_y = self._draw_labeled_field("Description:", 'description', self.upgrade.description, current_y, multiline=True)
+        current_y -= PADDING
 
         # Tier
-        self._draw_field_label("Tier:", "", self.x + padding, current_y)
-        current_y -= 20
-        self._draw_field_input('tier', str(self.upgrade.tier), self.x + padding, current_y, width=100)
-        current_y -= 40
+        current_y = self._draw_labeled_field("Tier:", 'tier', str(self.upgrade.tier), current_y, width=120)
+        current_y -= PADDING
 
         # Year
-        self._draw_field_label("Year:", "", self.x + padding, current_y)
-        current_y -= 20
-        self._draw_field_input('year', str(self.upgrade.year), self.x + padding, current_y, width=100)
-        current_y -= 40
+        current_y = self._draw_labeled_field("Year:", 'year', str(self.upgrade.year), current_y, width=120)
+        current_y -= PADDING
 
         # Exclusive Group
-        self._draw_field_label("Exclusive Group:", "", self.x + padding, current_y)
-        current_y -= 20
-        self._draw_field_input('exclusive_group', self.upgrade.exclusive_group or "", self.x + padding, current_y)
-        current_y -= 60
+        current_y = self._draw_labeled_field("Exclusive Group:", 'exclusive_group', self.upgrade.exclusive_group or "", current_y)
+        current_y -= SECTION_SPACING
 
         # Effects section
-        effects_start_y = self.y + self.height - 400 + self.scroll_y
-        self._draw_field_label("Effects:", "", self.x + padding, effects_start_y)
-        current_y = effects_start_y - 30
-
-        for i, effect in enumerate(self.upgrade.effects):
-            self._draw_effect(i, effect, self.x + padding, current_y)
-            current_y -= 60
-
-        current_y -= 20
+        current_y = self._draw_effects_section(current_y)
+        current_y -= SECTION_SPACING
 
         # Costs section
-        self._draw_field_label("Costs:", "", self.x + padding, current_y)
-        current_y -= 30
-
-        for i, cost in enumerate(self.upgrade.cost):
-            self._draw_cost(i, cost, self.x + padding, current_y)
-            current_y -= 40
-
-        for i, cost in enumerate(self.upgrade.cost):
-            self._draw_cost(i, cost, self.x + padding, current_y)
-            current_y -= 40
+        current_y = self._draw_costs_section(current_y)
+        current_y -= SECTION_SPACING
 
         # Requirements (read-only)
-        current_y -= 20
-        req_label = Label(
-            "Requirements:",
-            x=self.x + padding,
-            y=current_y,
-            font_size=12,
-            color=(200, 200, 200, 255)
-        )
-        req_label.draw()
-        current_y -= 25
+        self._draw_requirements_section(current_y)
 
-        if self.upgrade.requires:
-            req_text = ", ".join([str(r) if not isinstance(r, list) else f"[{', '.join(r)}]" for r in self.upgrade.requires])
-            req_value = Label(
-                req_text,
-                x=self.x + padding + 5,
-                y=current_y,
-                font_size=10,
-                color=(180, 180, 180, 255),
-                width=self.width - 30,
-                multiline=True
-            )
-            req_value.draw()
+    def _draw_labeled_field(self, label: str, field_id: str, value: str, y: int,
+                            read_only: bool = False, multiline: bool = False, width: int = None) -> int:
+        """Draw a labeled input field. Returns the Y position after drawing."""
+        if width is None:
+            width = self.width - PADDING * 2
 
-    def _draw_field_label(self, label: str, text: str, x: int, y: int, read_only: bool = False):
-        """Draw a field label."""
+        field_height = MULTILINE_HEIGHT if multiline else FIELD_HEIGHT
+
+        # Label
         label_obj = Label(
             label,
-            x=x,
+            x=self.x + PADDING,
             y=y,
             font_size=11,
             color=(200, 200, 200, 255)
         )
         label_obj.draw()
 
-        if read_only and text:
-            bg = Rectangle(
-                x, y - 30,
-                self.width - 30, 25,
-                color=(50, 50, 55) if read_only else (60, 60, 70)
-            )
-            bg.draw()
+        # Input field below label
+        field_y = y - 20
 
-            label = Label(
-                text,
-                x=x + 5,
-                y=y - 10,
-                font_size=10,
-                color=(180, 180, 180, 255) if read_only else (255, 255, 255, 255)
-            )
-            label.draw()
+        is_active = self.active_field == field_id and not read_only
+        bg_color = (50, 50, 55) if read_only else ((70, 90, 110) if is_active else (60, 60, 70))
 
-    def _draw_field_input(self, field_id: str, text: str, x: int, y: int, width: int = None, multiline: bool = False):
-        """Draw an editable input field."""
-        if width is None:
-            width = self.width - 30
-
-        height = 50 if multiline else 30
-
-        # Background
-        is_active = self.active_field == field_id
         bg = Rectangle(
-            x, y - height + 5,
-            width, height,
-            color=(70, 90, 110) if is_active else (60, 60, 70)
+            self.x + PADDING, field_y - field_height + 5,
+            width, field_height,
+            color=bg_color
         )
         bg.draw()
 
         # Border for active field
         if is_active:
-            border_color = (100, 150, 200)
-            # Draw border as 4 lines
-            top = Rectangle(x - 1, y + 6, width + 2, 1, color=border_color)
-            bottom = Rectangle(x - 1, y - height + 4, width + 2, 1, color=border_color)
-            left = Rectangle(x - 1, y - height + 4, 1, height + 2, color=border_color)
-            right = Rectangle(x + width, y - height + 4, 1, height + 2, color=border_color)
-            top.draw()
-            bottom.draw()
-            left.draw()
-            right.draw()
+            self._draw_field_border(self.x + PADDING, field_y - field_height + 5, width, field_height)
 
         # Text with cursor
-        display_text = text
+        display_text = value
         if is_active:
-            display_text += "|"  # Simple cursor
+            display_text += "|"
 
+        text_color = (150, 150, 150, 255) if read_only else (255, 255, 255, 255)
         label = Label(
             display_text,
-            x=x + 5,
-            y=y - 10 if not multiline else y - 15,
-            font_size=10,
-            color=(255, 255, 255, 255),
-            width=width - 10,
+            x=self.x + PADDING + 8,
+            y=field_y - field_height // 2 + 5,
+            anchor_y='center',
+            font_size=11,
+            color=text_color,
+            width=width - 16,
             multiline=multiline
         )
         label.draw()
 
-    def _draw_cost(self, index: int, cost: ResourceCost, x: int, y: int):
-        """Draw a cost entry."""
-        # Background
+        return field_y - field_height
+
+    def _draw_field_border(self, x: int, y: int, width: int, height: int):
+        """Draw a border around an active field."""
+        border_color = (100, 150, 200)
+        thickness = 2
+        # Top
+        Rectangle(x, y + height - thickness, width, thickness, color=border_color).draw()
+        # Bottom
+        Rectangle(x, y, width, thickness, color=border_color).draw()
+        # Left
+        Rectangle(x, y, thickness, height, color=border_color).draw()
+        # Right
+        Rectangle(x + width - thickness, y, thickness, height, color=border_color).draw()
+
+    def _draw_effects_section(self, start_y: int) -> int:
+        """Draw the effects section with editable fields."""
+        # Section label
+        Label(
+            "Effects:",
+            x=self.x + PADDING,
+            y=start_y,
+            font_size=12,
+            color=(100, 200, 255, 255)
+        ).draw()
+
+        # Add effect button
+        add_btn_y = start_y - 30
+        add_btn = {
+            'id': 'add_effect',
+            'label': '+ Add Effect',
+            'x': self.x + PADDING,
+            'y': add_btn_y,
+            'width': self.width - PADDING * 2,
+            'height': 28,
+            'color': (50, 100, 150)
+        }
+        self._draw_button(add_btn)
+        # Store for click detection
+        self._update_button('add_effect', add_btn)
+
+        current_y = add_btn_y - 35
+
+        for i, effect in enumerate(self.upgrade.effects):
+            current_y = self._draw_effect_editor(i, effect, current_y)
+            current_y -= PADDING
+
+        return current_y
+
+    def _draw_effect_editor(self, index: int, effect: Effect, y: int) -> int:
+        """Draw an editable effect entry. Returns Y position after drawing."""
+        box_width = self.width - PADDING * 2 - 35  # Leave room for X button
+
+        # Background box
+        box_height = EFFECT_HEIGHT
         bg = Rectangle(
-            x, y - 35,
-            self.width - 80, 35,
-            color=(55, 55, 60)
+            self.x + PADDING, y - box_height,
+            box_width, box_height,
+            color=(45, 55, 65)
         )
         bg.draw()
 
-        # Resource
-        resource_label = Label(
-            f"Resource: {cost.resource}",
-            x=x + 5,
-            y=y - 10,
-            font_size=10,
-            color=(255, 220, 100, 255)
-        )
-        resource_label.draw()
+        # X button - aligned to the right of this effect box
+        remove_btn = {
+            'id': f'remove_effect_{index}',
+            'label': '✕',
+            'x': self.x + PADDING + box_width + 5,
+            'y': y - 30,
+            'width': 25,
+            'height': 25,
+            'color': (150, 50, 50)
+        }
+        self._draw_button(remove_btn)
+        self._update_button(f'remove_effect_{index}', remove_btn)
 
-        # Amount
-        amount_label = Label(
-            f"Amount: {cost.amount}",
-            x=x + 5,
-            y=y - 25,
-            font_size=10,
-            color=(255, 220, 100, 255)
-        )
-        amount_label.draw()
+        inner_x = self.x + PADDING + 8
+        inner_width = box_width - 16
+        field_y = y - 8
 
-    def _draw_effect(self, index: int, effect: Effect, x: int, y: int):
-        """Draw an effect entry."""
-        # Background
+        # Resource field
+        Label("Resource:", x=inner_x, y=field_y, font_size=9, color=(150, 150, 150, 255)).draw()
+        field_y -= 18
+        self._draw_inline_input(f'effect_{index}_resource', effect.resource, inner_x, field_y, inner_width)
+        field_y -= 28
+
+        # Effect type field
+        Label("Type:", x=inner_x, y=field_y, font_size=9, color=(150, 150, 150, 255)).draw()
+        field_y -= 18
+        self._draw_inline_input(f'effect_{index}_effect', effect.effect, inner_x, field_y, inner_width // 2 - 5)
+
+        # Value field (same row)
+        Label("Value:", x=inner_x + inner_width // 2 + 5, y=field_y + 18, font_size=9, color=(150, 150, 150, 255)).draw()
+        self._draw_inline_input(f'effect_{index}_value', str(effect.value), inner_x + inner_width // 2 + 5, field_y, inner_width // 2 - 5)
+
+        return y - box_height
+
+    def _draw_costs_section(self, start_y: int) -> int:
+        """Draw the costs section with editable fields."""
+        # Section label
+        Label(
+            "Costs:",
+            x=self.x + PADDING,
+            y=start_y,
+            font_size=12,
+            color=(255, 200, 100, 255)
+        ).draw()
+
+        # Add cost button
+        add_btn_y = start_y - 30
+        add_btn = {
+            'id': 'add_cost',
+            'label': '+ Add Cost',
+            'x': self.x + PADDING,
+            'y': add_btn_y,
+            'width': self.width - PADDING * 2,
+            'height': 28,
+            'color': (150, 100, 50)
+        }
+        self._draw_button(add_btn)
+        self._update_button('add_cost', add_btn)
+
+        current_y = add_btn_y - 35
+
+        for i, cost in enumerate(self.upgrade.cost):
+            current_y = self._draw_cost_editor(i, cost, current_y)
+            current_y -= PADDING
+
+        return current_y
+
+    def _draw_cost_editor(self, index: int, cost: ResourceCost, y: int) -> int:
+        """Draw an editable cost entry. Returns Y position after drawing."""
+        box_width = self.width - PADDING * 2 - 35
+        box_height = COST_HEIGHT
+
+        # Background box
         bg = Rectangle(
-            x, y - 55,
-            self.width - 80, 55,
-            color=(55, 55, 60)
+            self.x + PADDING, y - box_height,
+            box_width, box_height,
+            color=(55, 50, 45)
         )
         bg.draw()
 
-        # Resource
-        resource_label = Label(
-            f"Resource: {effect.resource}",
-            x=x + 5,
-            y=y - 10,
-            font_size=10,
-            color=(100, 200, 255, 255)
-        )
-        resource_label.draw()
+        # X button - aligned to the right of this cost box
+        remove_btn = {
+            'id': f'remove_cost_{index}',
+            'label': '✕',
+            'x': self.x + PADDING + box_width + 5,
+            'y': y - 30,
+            'width': 25,
+            'height': 25,
+            'color': (150, 50, 50)
+        }
+        self._draw_button(remove_btn)
+        self._update_button(f'remove_cost_{index}', remove_btn)
 
-        # Effect type
-        effect_label = Label(
-            f"Type: {effect.effect}",
-            x=x + 5,
-            y=y - 25,
-            font_size=10,
-            color=(100, 200, 255, 255)
-        )
-        effect_label.draw()
+        inner_x = self.x + PADDING + 8
+        inner_width = box_width - 16
+        field_y = y - 8
 
-        # Value
-        value_label = Label(
-            f"Value: {effect.value}",
+        # Resource field
+        Label("Resource:", x=inner_x, y=field_y, font_size=9, color=(150, 150, 150, 255)).draw()
+        field_y -= 18
+        self._draw_inline_input(f'cost_{index}_resource', cost.resource, inner_x, field_y, inner_width // 2 - 5)
+
+        # Amount field (same row)
+        Label("Amount:", x=inner_x + inner_width // 2 + 5, y=field_y + 18, font_size=9, color=(150, 150, 150, 255)).draw()
+        self._draw_inline_input(f'cost_{index}_amount', str(cost.amount), inner_x + inner_width // 2 + 5, field_y, inner_width // 2 - 5)
+
+        return y - box_height
+
+    def _draw_inline_input(self, field_id: str, value: str, x: int, y: int, width: int):
+        """Draw a small inline input field."""
+        height = 22
+        is_active = self.active_field == field_id
+
+        bg_color = (70, 90, 110) if is_active else (55, 55, 60)
+        bg = Rectangle(x, y - height, width, height, color=bg_color)
+        bg.draw()
+
+        if is_active:
+            self._draw_field_border(x, y - height, width, height)
+
+        display_text = value + ("|" if is_active else "")
+        Label(
+            display_text,
             x=x + 5,
-            y=y - 40,
+            y=y - height // 2,
+            anchor_y='center',
             font_size=10,
-            color=(100, 200, 255, 255)
-        )
-        value_label.draw()
+            color=(255, 255, 255, 255)
+        ).draw()
+
+    def _draw_requirements_section(self, y: int):
+        """Draw the requirements section (read-only)."""
+        Label(
+            "Requirements:",
+            x=self.x + PADDING,
+            y=y,
+            font_size=12,
+            color=(200, 200, 200, 255)
+        ).draw()
+
+        if self.upgrade.requires:
+            req_text = ", ".join([
+                str(r) if not isinstance(r, list) else f"[{', '.join(r)}]"
+                for r in self.upgrade.requires
+            ])
+            Label(
+                req_text,
+                x=self.x + PADDING,
+                y=y - 25,
+                font_size=10,
+                color=(150, 150, 150, 255),
+                width=self.width - PADDING * 2,
+                multiline=True
+            ).draw()
+        else:
+            Label(
+                "(none)",
+                x=self.x + PADDING,
+                y=y - 25,
+                font_size=10,
+                color=(100, 100, 100, 255)
+            ).draw()
 
     def _draw_button(self, button: dict):
         """Draw a button."""
-        # Button background
         bg = Rectangle(
             button['x'], button['y'],
             button['width'], button['height'],
@@ -383,8 +430,7 @@ class PropertiesPanel:
         )
         bg.draw()
 
-        # Button label
-        label = Label(
+        Label(
             button['label'],
             x=button['x'] + button['width'] // 2,
             y=button['y'] + button['height'] // 2,
@@ -392,12 +438,22 @@ class PropertiesPanel:
             anchor_y='center',
             font_size=11,
             color=(255, 255, 255, 255)
-        )
-        label.draw()
+        ).draw()
+
+    def _update_button(self, button_id: str, button_data: dict):
+        """Update or add a button to the buttons list."""
+        for i, btn in enumerate(self.buttons):
+            if btn['id'] == button_id:
+                self.buttons[i] = button_data
+                return
+        self.buttons.append(button_data)
 
     def on_mouse_press(self, x: int, y: int, button: int) -> bool:
         """Handle mouse press. Returns True if handled."""
         if not (self.x <= x <= self.x + self.width and self.y <= y <= self.y + self.height):
+            # Clicked outside panel - deactivate editing
+            self.active_field = None
+            self.is_editing = False
             return False
 
         # Check buttons
@@ -409,74 +465,124 @@ class PropertiesPanel:
 
         # Check field clicks
         if self.upgrade:
-            self._check_field_click(x, y)
+            clicked_field = self._check_field_click(x, y)
+            if clicked_field:
+                self.active_field = clicked_field
+                self.is_editing = True
+            else:
+                self.active_field = None
+                self.is_editing = False
 
         return True
 
-    def _check_field_click(self, x: int, y: int):
-        """Check if a field was clicked."""
-        current_y = self.y + self.height - 140 + self.scroll_y
-        padding = 10
+    def _check_field_click(self, x: int, y: int) -> Optional[str]:
+        """Check if a field was clicked. Returns field_id or None."""
+        if not self.upgrade:
+            return None
 
+        content_y = self._get_content_start_y()
+
+        # Define clickable fields with their positions
+        # Format: (field_id, y_offset_from_content_start, height, read_only)
         fields = [
-            ('name', current_y, 30),
-            ('description', current_y - 60, 50),
-            ('tier', current_y - 140, 30),
-            ('year', current_y - 200, 30),
-            ('exclusive_group', current_y - 260, 30)
+            ('name', -20 - FIELD_HEIGHT - PADDING, FIELD_HEIGHT, False),
+            ('description', -20 - FIELD_HEIGHT - PADDING * 2 - FIELD_HEIGHT - 20 - MULTILINE_HEIGHT, MULTILINE_HEIGHT, False),
+            ('tier', -20 - FIELD_HEIGHT - PADDING * 3 - FIELD_HEIGHT - MULTILINE_HEIGHT - 40 - FIELD_HEIGHT, FIELD_HEIGHT, False),
+            ('year', -20 - FIELD_HEIGHT - PADDING * 4 - FIELD_HEIGHT * 2 - MULTILINE_HEIGHT - 60 - FIELD_HEIGHT, FIELD_HEIGHT, False),
+            ('exclusive_group', -20 - FIELD_HEIGHT - PADDING * 5 - FIELD_HEIGHT * 3 - MULTILINE_HEIGHT - 80 - FIELD_HEIGHT, FIELD_HEIGHT, False),
         ]
 
-        for field_id, field_y, field_height in fields:
-            if (self.x + padding <= x <= self.x + self.width - padding and
-                field_y - field_height <= y <= field_y):
-                self.active_field = field_id
-                return
+        # Check main fields (simplified bounds checking)
+        for field_id, _, _, read_only in fields:
+            if read_only:
+                continue
+            # Use approximate bounds - the actual implementation would need precise tracking
 
-        self.active_field = None
+        # For effect and cost fields, we need to check inline inputs
+        # This is simplified - in production you'd track exact positions
+
+        # Check if click is in the general editable area
+        if self.x + PADDING <= x <= self.x + self.width - PADDING:
+            # Determine which field based on y position
+            relative_y = y - content_y
+
+            # Name field area
+            if -60 <= relative_y <= -20:
+                return 'name'
+            elif -140 <= relative_y <= -80:
+                return 'description'
+            elif -200 <= relative_y <= -160:
+                return 'tier'
+            elif -260 <= relative_y <= -220:
+                return 'year'
+            elif -320 <= relative_y <= -280:
+                return 'exclusive_group'
+
+            # Effects and costs areas would need similar checks
+            # For now, check if we're clicking on any effect/cost field
+            effects_start = content_y - 380
+            for i in range(len(self.upgrade.effects)):
+                effect_top = effects_start - i * (EFFECT_HEIGHT + PADDING)
+                effect_bottom = effect_top - EFFECT_HEIGHT
+                if effect_bottom <= y <= effect_top:
+                    # Determine which sub-field
+                    rel_y = y - effect_top
+                    if -45 <= rel_y <= -25:
+                        return f'effect_{i}_resource'
+                    elif -75 <= rel_y <= -55:
+                        if x < self.x + self.width // 2:
+                            return f'effect_{i}_effect'
+                        else:
+                            return f'effect_{i}_value'
+
+            costs_start = effects_start - len(self.upgrade.effects) * (EFFECT_HEIGHT + PADDING) - SECTION_SPACING - 60
+            for i in range(len(self.upgrade.cost)):
+                cost_top = costs_start - i * (COST_HEIGHT + PADDING)
+                cost_bottom = cost_top - COST_HEIGHT
+                if cost_bottom <= y <= cost_top:
+                    rel_y = y - cost_top
+                    if -45 <= rel_y <= -25:
+                        if x < self.x + self.width // 2:
+                            return f'cost_{i}_resource'
+                        else:
+                            return f'cost_{i}_amount'
+
+        return None
 
     def _handle_button_click(self, button_id: str):
         """Handle button click."""
         if button_id == 'delete' and self.on_delete_node:
-            self.on_delete_node()
+            # Only delete if not actively editing a field
+            if not self.is_editing:
+                self.on_delete_node()
 
         elif button_id == 'add_effect' and self.upgrade:
-            # Add a new effect
-            new_effect = Effect(
-                resource="capital",
-                effect="add",
-                value=1.0
-            )
+            new_effect = Effect(resource="capital", effect="add", value=1.0)
             self.upgrade.effects.append(new_effect)
-            self._create_property_fields()
+            self._create_buttons()
             if self.on_property_changed:
                 self.on_property_changed(self.upgrade)
 
         elif button_id == 'add_cost' and self.upgrade:
-            # Add a new cost
-            new_cost = ResourceCost(
-                resource="capital",
-                amount=10.0
-            )
+            new_cost = ResourceCost(resource="capital", amount=10.0)
             self.upgrade.cost.append(new_cost)
-            self._create_property_fields()
+            self._create_buttons()
             if self.on_property_changed:
                 self.on_property_changed(self.upgrade)
 
         elif button_id.startswith('remove_effect_') and self.upgrade:
-            # Remove an effect
             index = int(button_id.split('_')[-1])
             if 0 <= index < len(self.upgrade.effects):
                 self.upgrade.effects.pop(index)
-                self._create_property_fields()
+                self._create_buttons()
                 if self.on_property_changed:
                     self.on_property_changed(self.upgrade)
 
         elif button_id.startswith('remove_cost_') and self.upgrade:
-            # Remove a cost
             index = int(button_id.split('_')[-1])
             if 0 <= index < len(self.upgrade.cost):
                 self.upgrade.cost.pop(index)
-                self._create_property_fields()
+                self._create_buttons()
                 if self.on_property_changed:
                     self.on_property_changed(self.upgrade)
 
@@ -485,27 +591,66 @@ class PropertiesPanel:
         if not self.active_field or not self.upgrade:
             return
 
-        if self.active_field == 'name':
+        field = self.active_field
+
+        # Main fields
+        if field == 'name':
             self.upgrade.name += text
-        elif self.active_field == 'description':
+        elif field == 'description':
             self.upgrade.description += text
-        elif self.active_field == 'tier':
-            try:
-                current = str(self.upgrade.tier)
-                self.upgrade.tier = int(current + text)
-            except ValueError:
-                pass
-        elif self.active_field == 'year':
-            try:
-                current = str(self.upgrade.year)
-                self.upgrade.year = int(current + text)
-            except ValueError:
-                pass
-        elif self.active_field == 'exclusive_group':
+        elif field == 'tier':
+            if text.isdigit() or (text == '-' and not str(self.upgrade.tier)):
+                try:
+                    self.upgrade.tier = int(str(self.upgrade.tier) + text)
+                except ValueError:
+                    pass
+        elif field == 'year':
+            if text.isdigit():
+                try:
+                    self.upgrade.year = int(str(self.upgrade.year) + text)
+                except ValueError:
+                    pass
+        elif field == 'exclusive_group':
             if self.upgrade.exclusive_group is None:
                 self.upgrade.exclusive_group = text
             else:
                 self.upgrade.exclusive_group += text
+
+        # Effect fields
+        elif field.startswith('effect_'):
+            parts = field.split('_')
+            index = int(parts[1])
+            subfield = parts[2]
+            if 0 <= index < len(self.upgrade.effects):
+                effect = self.upgrade.effects[index]
+                if subfield == 'resource':
+                    effect.resource += text
+                elif subfield == 'effect':
+                    effect.effect += text
+                elif subfield == 'value':
+                    try:
+                        current = str(effect.value)
+                        if text.isdigit() or text == '.' or (text == '-' and not current):
+                            effect.value = float(current + text)
+                    except ValueError:
+                        pass
+
+        # Cost fields
+        elif field.startswith('cost_'):
+            parts = field.split('_')
+            index = int(parts[1])
+            subfield = parts[2]
+            if 0 <= index < len(self.upgrade.cost):
+                cost = self.upgrade.cost[index]
+                if subfield == 'resource':
+                    cost.resource += text
+                elif subfield == 'amount':
+                    try:
+                        current = str(cost.amount)
+                        if text.isdigit() or text == '.' or (text == '-' and not current):
+                            cost.amount = float(current + text)
+                    except ValueError:
+                        pass
 
         if self.on_property_changed:
             self.on_property_changed(self.upgrade)
@@ -518,20 +663,48 @@ class PropertiesPanel:
         from pyglet.window import key
 
         if motion == key.MOTION_BACKSPACE:
-            if self.active_field == 'name' and self.upgrade.name:
+            field = self.active_field
+
+            if field == 'name' and self.upgrade.name:
                 self.upgrade.name = self.upgrade.name[:-1]
-            elif self.active_field == 'description' and self.upgrade.description:
+            elif field == 'description' and self.upgrade.description:
                 self.upgrade.description = self.upgrade.description[:-1]
-            elif self.active_field == 'tier':
+            elif field == 'tier':
                 tier_str = str(self.upgrade.tier)[:-1]
-                self.upgrade.tier = int(tier_str) if tier_str else 0
-            elif self.active_field == 'year':
+                self.upgrade.tier = int(tier_str) if tier_str and tier_str != '-' else 0
+            elif field == 'year':
                 year_str = str(self.upgrade.year)[:-1]
                 self.upgrade.year = int(year_str) if year_str else 1800
-            elif self.active_field == 'exclusive_group' and self.upgrade.exclusive_group:
-                self.upgrade.exclusive_group = self.upgrade.exclusive_group[:-1]
-                if not self.upgrade.exclusive_group:
-                    self.upgrade.exclusive_group = None
+            elif field == 'exclusive_group' and self.upgrade.exclusive_group:
+                self.upgrade.exclusive_group = self.upgrade.exclusive_group[:-1] or None
+
+            # Effect fields
+            elif field.startswith('effect_'):
+                parts = field.split('_')
+                index = int(parts[1])
+                subfield = parts[2]
+                if 0 <= index < len(self.upgrade.effects):
+                    effect = self.upgrade.effects[index]
+                    if subfield == 'resource' and effect.resource:
+                        effect.resource = effect.resource[:-1]
+                    elif subfield == 'effect' and effect.effect:
+                        effect.effect = effect.effect[:-1]
+                    elif subfield == 'value':
+                        val_str = str(effect.value)[:-1]
+                        effect.value = float(val_str) if val_str and val_str != '-' else 0.0
+
+            # Cost fields
+            elif field.startswith('cost_'):
+                parts = field.split('_')
+                index = int(parts[1])
+                subfield = parts[2]
+                if 0 <= index < len(self.upgrade.cost):
+                    cost = self.upgrade.cost[index]
+                    if subfield == 'resource' and cost.resource:
+                        cost.resource = cost.resource[:-1]
+                    elif subfield == 'amount':
+                        amt_str = str(cost.amount)[:-1]
+                        cost.amount = float(amt_str) if amt_str and amt_str != '-' else 0.0
 
             if self.on_property_changed:
                 self.on_property_changed(self.upgrade)
@@ -541,6 +714,5 @@ class PropertiesPanel:
         if not (self.x <= x <= self.x + self.width):
             return
 
-        # Scroll the properties panel
-        self.scroll_y += scroll_y * 20
-        self.scroll_y = max(-1000, min(0, self.scroll_y))
+        self.scroll_y += scroll_y * 30
+        self.scroll_y = max(-1500, min(0, self.scroll_y))
