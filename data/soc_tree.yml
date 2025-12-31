@@ -2,7 +2,7 @@ upgrades:
   # Tier 0 - Foundation (1800-1810)
   - id: soc_paternalism
     name: Paternalistic Management
-    description: Factory owners provide housing and basic welfare for workers, ensuring loyalty and control
+    description: Factory owners pay for1 housing and basic welfare for workers, ensuring loyalty and control
     tier: 0
     year: 1800
     cost:
@@ -12,11 +12,11 @@ upgrades:
         amount: 10
     effects:
       - resource: manpower
-        effect: mult
-        value: 1.15
+        effect: add
+        value: 2
       - resource: capital
         effect: mult
-        value: 0.95
+        value: 0.8
       - resource: influence
         effect: add
         value: 0.5
@@ -26,11 +26,11 @@ upgrades:
   - id: soc_company_towns
     name: Company Towns
     description: Establish self-contained communities where workers live, shop, and worship under company control
-    tier: 0
+    tier: 1
     year: 1805
     cost:
       - resource: capital
-        amount: 100
+        amount: 120
       - resource: manpower
         amount: 5
     effects:
@@ -39,18 +39,18 @@ upgrades:
         value: 1.25
       - resource: capital
         effect: add
-        value: -2.0
+        value: -0.5
       - resource: influence
         effect: add
-        value: 1.0
+        value: 2.0
     exclusive_group: null
-    requires: []
+    requires: [soc_paternalism]
 
   # Tier 1 - Labor Control (1810-1825)
   - id: soc_truck_system
     name: Truck System
     description: Pay workers in tokens redeemable only at company stores, maximizing profit extraction
-    tier: 1
+    tier: 2
     year: 1810
     cost:
       - resource: capital
@@ -67,13 +67,13 @@ upgrades:
       - resource: influence
         effect: add
         value: -0.5
-    exclusive_group: labor_payment
+    exclusive_group: labor_payment_1
     requires: [soc_company_towns]
 
   - id: soc_cash_wages
     name: Cash Wage System
     description: Pay workers in actual currency, attracting better labor but reducing control
-    tier: 1
+    tier: 2
     year: 1810
     cost:
       - resource: capital
@@ -90,31 +90,29 @@ upgrades:
       - resource: influence
         effect: add
         value: 1.0
-    exclusive_group: labor_payment
-    requires: [soc_company_towns]
+    exclusive_group: labor_payment_1
+    requires: []
 
-  - id: soc_child_labor
-    name: Child Labor Employment
-    description: Employ children in factories for their small size and low wages, common practice of the era
-    tier: 1
+  - id: soc_pay_in_product
+    name: Pay-in-Product
+    description: Pay workers in the product they produce to reduce the employment cost
+    tier: 3
     year: 1815
     cost:
-      - resource: capital
-        amount: 40
       - resource: influence
-        amount: 5
+        amount: 35
     effects:
-      - resource: manpower
-        effect: add
-        value: 3.0
       - resource: capital
         effect: mult
         value: 1.2
+      - resource: manpower
+        effect: mult
+        value: 0.9
       - resource: influence
         effect: add
-        value: -1.0
+        value: -0.5
     exclusive_group: null
-    requires: [soc_paternalism]
+    requires: [soc_truck_system]
 
   - id: soc_apprenticeship
     name: Factory Apprenticeship System
@@ -145,7 +143,7 @@ upgrades:
   - id: soc_self_help
     name: Self-Help Doctrine
     description: Promote individual responsibility and moral improvement, justifying inequality as personal failure
-    tier: 2
+    tier: 3
     year: 1825
     cost:
       - resource: capital
@@ -162,8 +160,8 @@ upgrades:
       - resource: manpower
         effect: mult
         value: 0.95
-    exclusive_group: social_philosophy
-    requires: [[soc_truck_system, soc_cash_wages]]
+    exclusive_group: null
+    requires: []
 
   - id: soc_utopian_experiment
     name: Utopian Factory Community
@@ -191,7 +189,7 @@ upgrades:
         effect: add
         value: 2.0
     exclusive_group: social_philosophy
-    requires: [[soc_truck_system, soc_cash_wages]]
+    requires: [soc_company_towns]
 
   - id: soc_mechanics_institutes
     name: Mechanics' Institutes
@@ -218,7 +216,7 @@ upgrades:
 
   # Tier 3 - Mature Industrial Society (1840-1850)
   - id: soc_factory_discipline
-    name: Scientific Factory Discipline
+    name: Factory Discipline
     description: Implement strict timekeeping, fines, and regulations to maximize productivity
     tier: 3
     year: 1840
@@ -238,14 +236,14 @@ upgrades:
         value: 0.9
       - resource: influence
         effect: add
-        value: -1.0
+        value: -0.8
     exclusive_group: null
     requires: [soc_self_help, soc_mechanics_institutes]
 
   - id: soc_philanthropic_capitalism
     name: Philanthropic Capitalism
     description: Wealthy industrialists fund hospitals, libraries, and parks to legitimize their wealth
-    tier: 3
+    tier: 4
     year: 1845
     cost:
       - resource: capital

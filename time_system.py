@@ -8,7 +8,7 @@ class TimeSystem:
     def __init__(self, start_year: int = 1800):
         self.current_year = start_year
         self.year_progress = 0.0  # Progress toward next year (0.0 to 1.0)
-        self.years_per_second = 0.5  # Base time speed (0.5 = 2 seconds per year)
+        self.years_per_second = 0.1  # Base time speed (0.5 = 2 seconds per year)
         self.time_multiplier = 1.0
         self.paused = False
 
