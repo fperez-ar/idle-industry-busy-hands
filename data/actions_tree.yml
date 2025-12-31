@@ -1,0 +1,360 @@
+upgrades:
+  - id: ind_child_labor
+    name: Institutionalized Child Labor
+    description: Employ children in factories to increase manpower
+    tier: 0
+    year: 1800
+    cost:
+      - resource: influence
+        amount: 5
+    effects:
+      - resource: manpower
+        effect: mult
+        value: 1.25
+      - resource: capital
+        effect: mult
+        value: 0.9
+    exclusive_group: labor_policy
+    requires: []
+
+  - id: ind_enclosure_expansion
+    name: Aggressive Enclosure Expansion
+    description: Wealthy landowners privatize common lands, forcing displaced peasants into industrial labor
+    tier: 0
+    year: 1805
+    cost:
+      - resource: influence
+        amount: 15
+    effects:
+      - resource: manpower
+        effect: add
+        value: 20
+      - resource: unrest
+        effect: add
+        value: 5
+    exclusive_group: land_policy
+    requires: []
+
+  - id: ind_factory_militia
+    name: Strike breakers
+    description: Armed forces loyal to industrialists suppress strikes and intimidate reformers
+    tier: 1
+    year: 1810
+    cost:
+      - resource: capital
+        amount: 60
+      - resource: influence
+        amount: 20
+    effects:
+      - resource: unrest
+        effect: mult
+        value: 0.75
+      - resource: influence
+        effect: add
+        value: 1.0
+    exclusive_group: security
+    requires: []
+
+  - id: ind_blacklisted_workers
+    name: National Worker Blacklists
+    description: Dissident workers are barred from employment across industrial networks
+    tier: 1
+    year: 1812
+    cost:
+      - resource: influence
+        amount: 25
+    effects:
+      - resource: stability
+        effect: add
+        value: 1.5
+      - resource: manpower
+        effect: mult
+        value: 0.95
+    exclusive_group: labor_policy
+    requires: []
+
+  - id: ind_brutal_shift_system
+    name: 18-Hour Shift System
+    description: Extreme working hours maximize output at severe human cost
+    tier: 1
+    year: 1815
+    cost:
+      - resource: stability
+        amount: 10
+    effects:
+      - resource: production
+        effect: mult
+        value: 1.35
+      - resource: manpower
+        effect: mult
+        value: 0.85
+    exclusive_group: labor_policy
+    requires: []
+
+  - id: ind_patent_hoarding
+    name: Patent Hoarding Cartels
+    description: Industrialists buy and suppress patents to block competitors and control innovation
+    tier: 1
+    year: 1818
+    cost:
+      - resource: capital
+        amount: 80
+    effects:
+      - resource: influence
+        effect: add
+        value: 2.0
+      - resource: innovation
+        effect: mult
+        value: 0.9
+    exclusive_group: innovation
+    requires: []
+
+  - id: ind_experimental_machinery
+    name: Human-Tested Experimental Machinery
+    description: Unproven machines are tested directly on workers to accelerate mechanization
+    tier: 2
+    year: 1820
+    cost:
+      - resource: capital
+        amount: 70
+    effects:
+      - resource: production
+        effect: mult
+        value: 1.25
+      - resource: unrest
+        effect: add
+        value: 8
+    exclusive_group: innovation
+    requires: []
+
+  - id: ind_company_towns
+    name: Total Control Company Towns
+    description: Workers live, shop, and worship under absolute corporate control
+    tier: 2
+    year: 1822
+    cost:
+      - resource: capital
+        amount: 100
+    effects:
+      - resource: influence
+        effect: add
+        value: 2.5
+      - resource: manpower
+        effect: mult
+        value: 1.1
+    exclusive_group: social_control
+    requires: []
+
+  - id: ind_pollution_dumping
+    name: Industrial Waste Dumping
+    description: Toxic byproducts are dumped without restraint to cut costs
+    tier: 2
+    year: 1825
+    cost:
+      - resource: stability
+        amount: 15
+    effects:
+      - resource: capital
+        effect: mult
+        value: 1.15
+      - resource: public_health
+        effect: mult
+        value: 0.8
+    exclusive_group: environment
+    requires: []
+
+  - id: ind_bribed_regulators
+    name: Bribed Inspectors and Regulators
+    description: Safety and labor inspections are rendered meaningless through corruption
+    tier: 2
+    year: 1828
+    cost:
+      - resource: capital
+        amount: 40
+    effects:
+      - resource: influence
+        effect: add
+        value: 1.5
+      - resource: stability
+        effect: mult
+        value: 0.95
+    exclusive_group: governance
+    requires: []
+
+  - id: ind_debt_peonage
+    name: Debt Peonage Contracts
+    description: Workers are trapped in perpetual debt, unable to leave employment
+    tier: 3
+    year: 1830
+    cost:
+      - resource: influence
+        amount: 30
+    effects:
+      - resource: manpower
+        effect: mult
+        value: 1.2
+      - resource: unrest
+        effect: add
+        value: 6
+    exclusive_group: labor_policy
+    requires: []
+
+  - id: ind_union_crackdown
+    name: Early Union Crackdowns
+    description: Organizers are imprisoned or exiled to prevent collective bargaining
+    tier: 3
+    year: 1832
+    cost:
+      - resource: influence
+        amount: 35
+    effects:
+      - resource: stability
+        effect: add
+        value: 2.0
+    exclusive_group: labor_policy
+    requires: []
+
+  - id: ind_scientific_patronage
+    name: Ruthless Scientific Patronage
+    description: Scientists are funded only if research benefits industrial profit, ethics ignored
+    tier: 3
+    year: 1835
+    cost:
+      - resource: capital
+        amount: 90
+    effects:
+      - resource: innovation
+        effect: mult
+        value: 1.3
+      - resource: public_trust
+        effect: mult
+        value: 0.9
+    exclusive_group: innovation
+    requires: []
+
+  - id: ind_monopoly_mergers
+    name: Forced Industrial Mergers
+    description: Competitors are coerced into monopolies through economic pressure
+    tier: 3
+    year: 1838
+    cost:
+      - resource: capital
+        amount: 120
+    effects:
+      - resource: capital
+        effect: mult
+        value: 1.25
+      - resource: influence
+        effect: add
+        value: 3.0
+    exclusive_group: market
+    requires: []
+
+  - id: ind_prison_labor
+    name: Prison Labor Contracts
+    description: Inmates are leased as expendable industrial labor
+    tier: 3
+    year: 1840
+    cost:
+      - resource: influence
+        amount: 20
+    effects:
+      - resource: manpower
+        effect: add
+        value: 30
+      - resource: unrest
+        effect: add
+        value: 4
+    exclusive_group: labor_policy
+    requires: []
+
+  - id: ind_insane_investments
+    name: Speculative Megaproject Gambles
+    description: Vast fortunes are risked on unproven industrial schemes
+    tier: 4
+    year: 1842
+    cost:
+      - resource: capital
+        amount: 200
+    effects:
+      - resource: capital
+        effect: mult
+        value: 1.4
+      - resource: stability
+        effect: mult
+        value: 0.85
+    exclusive_group: finance
+    requires: []
+
+  - id: ind_media_control
+    name: Newspaper Ownership Networks
+    description: Media outlets are bought to shape public opinion and policy
+    tier: 4
+    year: 1845
+    cost:
+      - resource: capital
+        amount: 70
+    effects:
+      - resource: influence
+        effect: add
+        value: 4.0
+    exclusive_group: governance
+    requires: []
+
+  - id: ind_human_experiments
+    name: Industrial Human Experimentation
+    description: Workers are used as test subjects for chemicals and machines
+    tier: 4
+    year: 1847
+    cost:
+      - resource: stability
+        amount: 25
+    effects:
+      - resource: innovation
+        effect: mult
+        value: 1.35
+      - resource: unrest
+        effect: add
+        value: 10
+    exclusive_group: innovation
+    requires: []
+
+  - id: ind_shadow_politics
+    name: Shadow Parliamentary Control
+    description: Industrialists secretly dictate legislation through bribery and threats
+    tier: 4
+    year: 1848
+    cost:
+      - resource: capital
+        amount: 150
+      - resource: influence
+        amount: 50
+    effects:
+      - resource: influence
+        effect: mult
+        value: 1.5
+    exclusive_group: governance
+    requires: []
+
+  - id: ind_total_industrial_hegemony
+    name: Total Industrial Hegemony
+    description: Wealthy industrialists dominate economy, science, and politics without restraint
+    tier: 5
+    year: 1850
+    cost:
+      - resource: capital
+        amount: 300
+      - resource: stability
+        amount: 30
+    effects:
+      - resource: capital
+        effect: mult
+        value: 1.5
+      - resource: influence
+        effect: mult
+        value: 1.5
+      - resource: unrest
+        effect: add
+        value: 12
+    exclusive_group: endgame
+    requires: []

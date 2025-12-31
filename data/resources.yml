@@ -1,0 +1,33 @@
+
+resources:
+  - id: capital
+    name: Capital
+    description: Financial resources
+    icon: 💰
+    color: [255, 215, 0]  # Gold
+    base_production: 1.0
+    min_value: 0          # Can't go negative
+
+  - id: manpower
+    name: Manpower
+    description: Hired labour
+    icon: 👷
+    color: [100, 149, 237]  # Cornflower blue
+    base_production: 0.5
+    min_value: 0
+
+  - id: science
+    name: Science
+    description: Accumulated scientifical progress
+    icon: 🔬
+    color: [50, 205, 50]  # Lime green
+    base_production: 0.0   # No passive generation by default
+    min_value: 0
+
+  - id: influence
+    name: Influence
+    description: Political and social capital
+    icon: 🏛️
+    color: [148, 0, 211]  # Dark violet
+    base_production: 0.1
+    min_value: 0
