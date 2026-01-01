@@ -1,6 +1,8 @@
 # ui/editor_properties.py
 
 import pyglet
+from pyglet.window import key
+
 from pyglet.text import Label
 from pyglet.shapes import Rectangle
 from typing import Optional, Callable, Dict, Tuple
@@ -14,13 +16,10 @@ SECTION_SPACING = 40
 EFFECT_HEIGHT = 100
 COST_HEIGHT = 70
 
-MIN_YEAR = 0.0
-MAX_YEAR = 10000000.0
-
 class PropertiesPanel:
     """Panel for editing node properties."""
 
-    def __init__(self, x: int, y: int, width: int, height: int):
+    def __init__(self, x: int, y: int, width: int, height: int, overrides: Dict):
         self.x = x
         self.y = y
         self.width = width
@@ -40,15 +39,16 @@ class PropertiesPanel:
         # Callbacks
         self.on_property_changed: Optional[Callable[[Upgrade], None]] = None
         self.on_delete_node: Optional[Callable[[], None]] = None
+        self.on_show_effect_popup: Optional[Callable[[], None]] = None  # NEW
+        self.on_show_cost_popup: Optional[Callable[[], None]] = None    # NEW
 
-    def set_upgrade(self, upgrade: Optional[Upgrade]):
-        """Set the upgrade to display/edit."""
-        self.upgrade = upgrade
-        self.active_field = None
-        self.is_editing = False
-        self.scroll_y = 0
-        self.field_rects.clear()
-        self.buttons = []
+        # min max overrides
+        self.overrides = overrides
+
+        self._editing_values: Dict[str, str] = {}
+
+    def _get_from_overrides(self, attr_name: str, attr_val_name: str):
+      return self.overrides.get(attr_name, {}).get(attr_val_name, -1)
 
     def _format_numeric_input(self, current_value: str, new_char: str, is_integer: bool = False) -> Optional[str]:
         """
@@ -62,14 +62,14 @@ class PropertiesPanel:
         Returns:
             Formatted string if valid, None if invalid
         """
-        # Handle empty field
-        if current_value in ('0', '0.0', ''):
+        # Handle empty field or default values - replace them when user types a digit
+        if current_value in ('0', '0.0', '', '-0', '-0.0'):
             if new_char == '-':
                 return '-'
             elif new_char == '.' and not is_integer:
                 return '0.'
             elif new_char.isdigit():
-                return new_char
+                return new_char  # Replace the 0, don't append
             else:
                 return None
 
@@ -122,6 +122,10 @@ class PropertiesPanel:
 
     def _get_field_value_string(self, field: str) -> str:
         """Get the current string value for a field."""
+        # Return editing value if available
+        if field in self._editing_values:
+            return self._editing_values[field]
+
         if field == 'name':
             return self.upgrade.name
         elif field == 'description':
@@ -158,15 +162,47 @@ class PropertiesPanel:
 
     def _set_field_value_string(self, field: str, value: str):
         """Set the string value for a field."""
+        is_numeric, is_integer = self._is_numeric_field(field)
+
+        # For numeric fields, store the raw string during editing
+        if is_numeric:
+            self._editing_values[field] = value
+
+            # Also update the upgrade object with a temporary conversion
+            # (will be properly validated on blur)
+            try:
+                if value in ('-', '.', '-.'):
+                    temp_value = 0
+                else:
+                    temp_value = float(value)
+                    if is_integer:
+                        temp_value = int(temp_value)
+            except ValueError:
+                temp_value = 0
+
+            # Update the actual upgrade object
+            if field == 'tier':
+                self.upgrade.tier = int(temp_value)
+            elif field == 'year':
+                self.upgrade.year = int(temp_value)
+            elif field.endswith('_value'):
+                parts = field.split('_')
+                index = int(parts[1])
+                if 0 <= index < len(self.upgrade.effects):
+                    self.upgrade.effects[index].value = float(temp_value)
+            elif field.endswith('_amount'):
+                parts = field.split('_')
+                index = int(parts[1])
+                if 0 <= index < len(self.upgrade.cost):
+                    self.upgrade.cost[index].amount = float(temp_value)
+
+            return
+
+        # For non-numeric fields, set directly
         if field == 'name':
             self.upgrade.name = value
         elif field == 'description':
             self.upgrade.description = value
-        elif field == 'tier':
-            self.upgrade.tier = self._validate_numeric_field(value, is_integer=True)
-        elif field == 'year':
-            print('年　YEAR ', value)
-            self.upgrade.year = int(self._validate_numeric_field(value, is_integer=True, min_val=MIN_YEAR, max_val=MAX_YEAR))
         elif field == 'exclusive_group':
             self.upgrade.exclusive_group = value if value else None
         elif field.startswith('effect_'):
@@ -179,8 +215,6 @@ class PropertiesPanel:
                     effect.resource = value
                 elif subfield == 'effect':
                     effect.effect = value
-                elif subfield == 'value':
-                    effect.value = self._validate_numeric_field(value, is_integer=False)
         elif field.startswith('cost_'):
             parts = field.split('_')
             index = int(parts[1])
@@ -189,8 +223,8 @@ class PropertiesPanel:
                 cost = self.upgrade.cost[index]
                 if subfield == 'resource':
                     cost.resource = value
-                elif subfield == 'amount':
-                    cost.amount = self._validate_numeric_field(value, is_integer=False)
+
+
 
     def _is_numeric_field(self, field: str) -> tuple[bool, bool]:
         """
@@ -220,95 +254,6 @@ class PropertiesPanel:
                 self.buttons[i] = button
                 return
         self.buttons.append(button)
-
-    def draw(self):
-        """Draw the properties panel."""
-        # Clear field rects each frame (they get re-registered during draw)
-        self.field_rects.clear()
-        self.buttons = []
-
-        # Background
-        bg = Rectangle(
-            self.x, self.y,
-            self.width, self.height,
-            color=(35, 35, 40)
-        )
-        bg.draw()
-
-        # Title
-        title = Label(
-            "Properties",
-            x=self.x + self.width // 2,
-            y=self.y + self.height - 20,
-            anchor_x='center',
-            anchor_y='center',
-            font_size=14,
-            color=(255, 255, 255, 255)
-        )
-        title.draw()
-
-        if not self.upgrade:
-            no_selection = Label(
-                "No node selected",
-                x=self.x + self.width // 2,
-                y=self.y + self.height // 2,
-                anchor_x='center',
-                anchor_y='center',
-                font_size=12,
-                color=(150, 150, 150, 255)
-            )
-            no_selection.draw()
-            return
-
-        # Delete button
-        delete_btn = {
-            'id': 'delete',
-            'label': '🗑️ Delete Node',
-            'x': self.x + PADDING,
-            'y': self.y + self.height - 55,
-            'width': self.width - PADDING * 2,
-            'height': 35,
-            'color': (150, 50, 50)
-        }
-        self._draw_button(delete_btn)
-        self._register_button(delete_btn)
-
-        current_y = self._get_content_start_y()
-
-        # ID (read-only)
-        current_y = self._draw_labeled_field("ID:", 'id', self.upgrade.id, current_y, read_only=True)
-        current_y -= PADDING
-
-        # Name
-        current_y = self._draw_labeled_field("Name:", 'name', self.upgrade.name, current_y)
-        current_y -= PADDING
-
-        # Description
-        current_y = self._draw_labeled_field("Description:", 'description', self.upgrade.description, current_y, multiline=True)
-        current_y -= PADDING
-
-        # Tier
-        current_y = self._draw_labeled_field("Tier:", 'tier', str(self.upgrade.tier), current_y, width=120)
-        current_y -= PADDING
-
-        # Year
-        current_y = self._draw_labeled_field("Year:", 'year', str(self.upgrade.year), current_y, width=120)
-        current_y -= PADDING
-
-        # Exclusive Group
-        current_y = self._draw_labeled_field("Exclusive Group:", 'exclusive_group', self.upgrade.exclusive_group or "", current_y)
-        current_y -= SECTION_SPACING
-
-        # Effects section
-        current_y = self._draw_effects_section(current_y)
-        current_y -= SECTION_SPACING
-
-        # Costs section
-        current_y = self._draw_costs_section(current_y)
-        current_y -= SECTION_SPACING
-
-        # Requirements (read-only)
-        self._draw_requirements_section(current_y)
 
     def _draw_labeled_field(self, label: str, field_id: str, value: str, y: int,
                             read_only: bool = False, multiline: bool = False, width: int = None) -> int:
@@ -610,50 +555,6 @@ class PropertiesPanel:
             color=(255, 255, 255, 255)
         ).draw()
 
-    def on_mouse_press(self, x: int, y: int, button: int) -> bool:
-        """Handle mouse press. Returns True if handled."""
-        if not (self.x <= x <= self.x + self.width and self.y <= y <= self.y + self.height):
-            # Clicked outside panel - validate and deactivate editing
-            if self.active_field and self.upgrade:
-                self._validate_and_blur_field()
-            self.active_field = None
-            self.is_editing = False
-            return False
-
-        # Check buttons first
-        for btn in self.buttons:
-            if (btn['x'] <= x <= btn['x'] + btn['width'] and
-                btn['y'] <= y <= btn['y'] + btn['height']):
-                # Validate current field before handling button
-                if self.active_field and self.upgrade:
-                    self._validate_and_blur_field()
-                self._handle_button_click(btn['id'])
-                return True
-
-        # Check field clicks using registered rectangles
-        if self.upgrade:
-            clicked_field = None
-            for field_id, (fx, fy, fw, fh) in self.field_rects.items():
-                if fx <= x <= fx + fw and fy <= y <= fy + fh:
-                    clicked_field = field_id
-                    break
-
-            if clicked_field:
-                # Validate previous field before switching
-                if self.active_field and self.active_field != clicked_field:
-                    self._validate_and_blur_field()
-
-                self.active_field = clicked_field
-                self.is_editing = True
-            else:
-                # Clicked in panel but not on a field - validate and deactivate
-                if self.active_field:
-                    self._validate_and_blur_field()
-                self.active_field = None
-                self.is_editing = False
-
-        return True
-
     def _validate_and_blur_field(self):
         """Validate the current active field and apply formatting."""
         if not self.active_field or not self.upgrade:
@@ -662,15 +563,18 @@ class PropertiesPanel:
         is_numeric, is_integer = self._is_numeric_field(self.active_field)
 
         if is_numeric:
-            current_value = self._get_field_value_string(self.active_field)
+            # Get the raw editing value
+            current_value = self._editing_values.get(self.active_field, self._get_field_value_string(self.active_field))
 
             # Determine validation parameters based on field
             if self.active_field == 'year':
+                min_year = self._get_from_overrides('year', 'min')
+                max_year = self._get_from_overrides('year', 'max')
                 validated_value = self._validate_numeric_field(
                     current_value,
                     is_integer=True,
-                    min_val=MIN_YEAR,
-                    max_val=MAX_YEAR
+                    min_val=min_year,
+                    max_val=max_year
                 )
             elif self.active_field == 'tier':
                 validated_value = self._validate_numeric_field(
@@ -688,7 +592,7 @@ class PropertiesPanel:
                     max_val=100
                 )
 
-            # Update the field with validated value
+            # Update the actual field with validated value
             if self.active_field == 'tier':
                 self.upgrade.tier = int(validated_value)
             elif self.active_field == 'year':
@@ -704,8 +608,13 @@ class PropertiesPanel:
                 if 0 <= index < len(self.upgrade.cost):
                     self.upgrade.cost[index].amount = validated_value
 
+            # Clear the editing value
+            if self.active_field in self._editing_values:
+                del self._editing_values[self.active_field]
+
             if self.on_property_changed:
                 self.on_property_changed(self.upgrade)
+
 
     def _handle_button_click(self, button_id: str):
         """Handle button click."""
@@ -714,16 +623,14 @@ class PropertiesPanel:
                 self.on_delete_node()
 
         elif button_id == 'add_effect' and self.upgrade:
-            new_effect = Effect(resource="capital", effect="add", value=1.0)
-            self.upgrade.effects.append(new_effect)
-            if self.on_property_changed:
-                self.on_property_changed(self.upgrade)
+            # Show popup instead of directly adding
+            if hasattr(self, 'on_show_effect_popup') and self.on_show_effect_popup:
+                self.on_show_effect_popup()
 
         elif button_id == 'add_cost' and self.upgrade:
-            new_cost = ResourceCost(resource="capital", amount=10.0)
-            self.upgrade.cost.append(new_cost)
-            if self.on_property_changed:
-                self.on_property_changed(self.upgrade)
+            # Show popup instead of directly adding
+            if hasattr(self, 'on_show_cost_popup') and self.on_show_cost_popup:
+                self.on_show_cost_popup()
 
         elif button_id.startswith('remove_effect_') and self.upgrade:
             index = int(button_id.split('_')[-1])
@@ -739,40 +646,226 @@ class PropertiesPanel:
                 if self.on_property_changed:
                     self.on_property_changed(self.upgrade)
 
+            # elif button_id == 'add_effect' and self.upgrade:
+            #     new_effect = Effect(resource="capital", effect="add", value=0.0)
+            #     self.upgrade.effects.append(new_effect)
+            #     if self.on_property_changed:
+            #         self.on_property_changed(self.upgrade)
+
+            # elif button_id == 'add_cost' and self.upgrade:
+            #     new_cost = ResourceCost(resource="capital", amount=10.0)
+            #     self.upgrade.cost.append(new_cost)
+            #     if self.on_property_changed:
+            #         self.on_property_changed(self.upgrade)
+
+            # elif button_id.startswith('remove_effect_') and self.upgrade:
+            #     index = int(button_id.split('_')[-1])
+            #     if 0 <= index < len(self.upgrade.effects):
+            #         self.upgrade.effects.pop(index)
+            #         if self.on_property_changed:
+            #             self.on_property_changed(self.upgrade)
+
+            # elif button_id.startswith('remove_cost_') and self.upgrade:
+            #     index = int(button_id.split('_')[-1])
+            #     if 0 <= index < len(self.upgrade.cost):
+            #         self.upgrade.cost.pop(index)
+            #         if self.on_property_changed:
+            #             self.on_property_changed(self.upgrade)
+
+      ### public
+
+  # public
+    def set_upgrade(self, upgrade: Optional[Upgrade]):
+        """Set the upgrade to display/edit."""
+        self.upgrade = upgrade
+        self.active_field = None
+        self.is_editing = False
+        self.scroll_y = 0
+        self.field_rects.clear()
+        self.buttons = []
+
+    def draw(self):
+      """Draw the properties panel."""
+      # Clear field rects each frame (they get re-registered during draw)
+      self.field_rects.clear()
+      self.buttons = []
+
+      # Background
+      bg = Rectangle(
+          self.x, self.y,
+          self.width, self.height,
+          color=(35, 35, 40)
+      )
+      bg.draw()
+
+      # Title
+      title = Label(
+          "Properties",
+          x=self.x + self.width // 2,
+          y=self.y + self.height - 20,
+          anchor_x='center',
+          anchor_y='center',
+          font_size=14,
+          color=(255, 255, 255, 255)
+      )
+      title.draw()
+
+      if not self.upgrade:
+          no_selection = Label(
+              "No node selected",
+              x=self.x + self.width // 2,
+              y=self.y + self.height // 2,
+              anchor_x='center',
+              anchor_y='center',
+              font_size=12,
+              color=(150, 150, 150, 255)
+          )
+          no_selection.draw()
+          return
+
+      # Delete button
+      delete_btn = {
+          'id': 'delete',
+          'label': '🗑️ Delete Node',
+          'x': self.x + PADDING,
+          'y': self.y + self.height - 55,
+          'width': self.width - PADDING * 2,
+          'height': 35,
+          'color': (150, 50, 50)
+      }
+      self._draw_button(delete_btn)
+      self._register_button(delete_btn)
+
+      current_y = self._get_content_start_y()
+
+      # ID (read-only)
+      current_y = self._draw_labeled_field("ID:", 'id', self.upgrade.id, current_y, read_only=True)
+      current_y -= PADDING
+
+      # Name
+      current_y = self._draw_labeled_field("Name:", 'name', self.upgrade.name, current_y)
+      current_y -= PADDING
+
+      # Description
+      current_y = self._draw_labeled_field("Description:", 'description', self.upgrade.description, current_y, multiline=True)
+      current_y -= PADDING
+
+      # Tier
+      current_y = self._draw_labeled_field("Tier:", 'tier', str(self.upgrade.tier), current_y, width=120)
+      current_y -= PADDING
+
+      # Year
+      current_y = self._draw_labeled_field("Year:", 'year', str(self.upgrade.year), current_y, width=120)
+      current_y -= PADDING
+
+      # Exclusive Group
+      current_y = self._draw_labeled_field("Exclusive Group:", 'exclusive_group', self.upgrade.exclusive_group or "", current_y)
+      current_y -= SECTION_SPACING
+
+      # Effects section
+      current_y = self._draw_effects_section(current_y)
+      current_y -= SECTION_SPACING
+
+      # Costs section
+      current_y = self._draw_costs_section(current_y)
+      current_y -= SECTION_SPACING
+
+      # Requirements (read-only)
+      self._draw_requirements_section(current_y)
+
+  # on_* handlers
+    def on_mouse_press(self, x: int, y: int, button: int) -> bool:
+      """Handle mouse press. Returns True if handled."""
+      if not (self.x <= x <= self.x + self.width and self.y <= y <= self.y + self.height):
+          # Clicked outside panel - validate and deactivate editing
+          if self.active_field and self.upgrade:
+              self._validate_and_blur_field()
+          self.active_field = None
+          self.is_editing = False
+          return False
+
+      # Check buttons first
+      for btn in self.buttons:
+          if (btn['x'] <= x <= btn['x'] + btn['width'] and
+              btn['y'] <= y <= btn['y'] + btn['height']):
+              # Validate current field before handling button
+              if self.active_field and self.upgrade:
+                  self._validate_and_blur_field()
+              self._handle_button_click(btn['id'])
+              return True
+
+      # Check field clicks using registered rectangles
+      if self.upgrade:
+          clicked_field = None
+          for field_id, (fx, fy, fw, fh) in self.field_rects.items():
+              if fx <= x <= fx + fw and fy <= y <= fy + fh:
+                  clicked_field = field_id
+                  break
+
+          if clicked_field:
+              # Validate previous field before switching
+              if self.active_field and self.active_field != clicked_field:
+                  self._validate_and_blur_field()
+
+              self.active_field = clicked_field
+              self.is_editing = True
+
+              # NEW: Mark numeric fields for replacement on first keystroke
+              is_numeric, _ = self._is_numeric_field(clicked_field)
+              if is_numeric:
+                  self.field_selected_for_replacement = True  # Add this flag
+          else:
+              # Clicked in panel but not on a field - validate and deactivate
+              if self.active_field:
+                  self._validate_and_blur_field()
+              self.active_field = None
+              self.is_editing = False
+
+      return True
+
     def on_text(self, text: str):
-        """Handle text input."""
-        if not self.active_field or not self.upgrade:
-            return
+      """Handle text input."""
+      if not self.active_field or not self.upgrade:
+          return
 
-        is_numeric, is_integer = self._is_numeric_field(self.active_field)
+      is_numeric, is_integer = self._is_numeric_field(self.active_field)
 
-        if is_numeric:
-            # Handle numeric fields with formatting
-            current_value = self._get_field_value_string(self.active_field)
-            formatted = self._format_numeric_input(current_value, text, is_integer)
+      if is_numeric:
+          current_value = self._get_field_value_string(self.active_field)
 
-            if formatted is not None:
-                self._set_field_value_string(self.active_field, formatted)
-        else:
-            # Handle text fields normally
-            current_value = self._get_field_value_string(self.active_field)
-            self._set_field_value_string(self.active_field, current_value + text)
+          # If field was just selected, replace the value instead of appending
+          if self.field_selected_for_replacement and text.isdigit():
+              self.field_selected_for_replacement = False
+              self._set_field_value_string(self.active_field, text)
+          else:
+              self.field_selected_for_replacement = False
+              formatted = self._format_numeric_input(current_value, text, is_integer)
+              if formatted is not None:
+                  self._set_field_value_string(self.active_field, formatted)
+      else:
+          # Handle text fields normally
+          current_value = self._get_field_value_string(self.active_field)
+          self._set_field_value_string(self.active_field, current_value + text)
 
-        if self.on_property_changed:
-            self.on_property_changed(self.upgrade)
+      if self.on_property_changed:
+          self.on_property_changed(self.upgrade)
+
 
     def on_text_motion(self, motion: int):
         """Handle text motion (backspace, delete, etc.)."""
         if not self.active_field or not self.upgrade:
             return
 
-        from pyglet.window import key
-
         if motion == key.MOTION_BACKSPACE:
             current_value = self._get_field_value_string(self.active_field)
 
             if current_value:
                 new_value = current_value[:-1]
+                # If field becomes empty, set to "0" for numeric fields
+                is_numeric, is_integer = self._is_numeric_field(self.active_field)
+                if not new_value and is_numeric:
+                    new_value = "0"
+
                 self._set_field_value_string(self.active_field, new_value)
 
                 if self.on_property_changed:
