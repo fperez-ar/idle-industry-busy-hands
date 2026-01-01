@@ -14,6 +14,8 @@ SECTION_SPACING = 40
 EFFECT_HEIGHT = 100
 COST_HEIGHT = 70
 
+MIN_YEAR = 0.0
+MAX_YEAR = 10000000.0
 
 class PropertiesPanel:
     """Panel for editing node properties."""
@@ -47,6 +49,161 @@ class PropertiesPanel:
         self.scroll_y = 0
         self.field_rects.clear()
         self.buttons = []
+
+    def _format_numeric_input(self, current_value: str, new_char: str, is_integer: bool = False) -> Optional[str]:
+        """
+        Format numeric input for text fields.
+
+        Args:
+            current_value: Current string value in the field
+            new_char: New character being added
+            is_integer: If True, only allow integers; if False, allow floats
+
+        Returns:
+            Formatted string if valid, None if invalid
+        """
+        # Handle empty field
+        if current_value in ('0', '0.0', ''):
+            if new_char == '-':
+                return '-'
+            elif new_char == '.' and not is_integer:
+                return '0.'
+            elif new_char.isdigit():
+                return new_char
+            else:
+                return None
+
+        # Build potential new value
+        potential = current_value + new_char
+
+        # For integers, only allow digits and leading minus
+        if is_integer:
+            if new_char.isdigit():
+                return potential
+            elif new_char == '-' and current_value == '':
+                return '-'
+            else:
+                return None
+
+        # For floats, validate format
+        if new_char.isdigit():
+            return potential
+        elif new_char == '-' and current_value == '':
+            return '-'
+        elif new_char == '.' and '.' not in current_value:
+            return potential
+        else:
+            return None
+
+    def _validate_numeric_field(self, value_str: str, is_integer: bool = False, min_val = -100.0, max_val = 100.0) -> float or int:
+        """
+        Validate and convert numeric field value on blur.
+
+        Args:
+            value_str: String value to validate
+            is_integer: If True, return integer; if False, return float
+
+        Returns:
+            Validated numeric value (defaults to 0 if invalid)
+        """
+        if not value_str or value_str in ('-', '.', '-.'):
+            return 0.0 if not is_integer else 0
+
+        try:
+            value = float(value_str)
+            value = max(float(min_val), min(float(max_val), value))
+            if is_integer:
+                return int(value)
+            else:
+                # Round to 2 decimal places
+                return round(value, 2)
+        except ValueError:
+            return 0.0 if not is_integer else 0
+
+    def _get_field_value_string(self, field: str) -> str:
+        """Get the current string value for a field."""
+        if field == 'name':
+            return self.upgrade.name
+        elif field == 'description':
+            return self.upgrade.description
+        elif field == 'tier':
+            return str(self.upgrade.tier)
+        elif field == 'year':
+            return str(self.upgrade.year)
+        elif field == 'exclusive_group':
+            return self.upgrade.exclusive_group or ''
+        elif field.startswith('effect_'):
+            parts = field.split('_')
+            index = int(parts[1])
+            subfield = parts[2]
+            if 0 <= index < len(self.upgrade.effects):
+                effect = self.upgrade.effects[index]
+                if subfield == 'resource':
+                    return effect.resource
+                elif subfield == 'effect':
+                    return effect.effect
+                elif subfield == 'value':
+                    return str(effect.value)
+        elif field.startswith('cost_'):
+            parts = field.split('_')
+            index = int(parts[1])
+            subfield = parts[2]
+            if 0 <= index < len(self.upgrade.cost):
+                cost = self.upgrade.cost[index]
+                if subfield == 'resource':
+                    return cost.resource
+                elif subfield == 'amount':
+                    return str(cost.amount)
+        return ''
+
+    def _set_field_value_string(self, field: str, value: str):
+        """Set the string value for a field."""
+        if field == 'name':
+            self.upgrade.name = value
+        elif field == 'description':
+            self.upgrade.description = value
+        elif field == 'tier':
+            self.upgrade.tier = self._validate_numeric_field(value, is_integer=True)
+        elif field == 'year':
+            print('年　YEAR ', value)
+            self.upgrade.year = int(self._validate_numeric_field(value, is_integer=True, min_val=MIN_YEAR, max_val=MAX_YEAR))
+        elif field == 'exclusive_group':
+            self.upgrade.exclusive_group = value if value else None
+        elif field.startswith('effect_'):
+            parts = field.split('_')
+            index = int(parts[1])
+            subfield = parts[2]
+            if 0 <= index < len(self.upgrade.effects):
+                effect = self.upgrade.effects[index]
+                if subfield == 'resource':
+                    effect.resource = value
+                elif subfield == 'effect':
+                    effect.effect = value
+                elif subfield == 'value':
+                    effect.value = self._validate_numeric_field(value, is_integer=False)
+        elif field.startswith('cost_'):
+            parts = field.split('_')
+            index = int(parts[1])
+            subfield = parts[2]
+            if 0 <= index < len(self.upgrade.cost):
+                cost = self.upgrade.cost[index]
+                if subfield == 'resource':
+                    cost.resource = value
+                elif subfield == 'amount':
+                    cost.amount = self._validate_numeric_field(value, is_integer=False)
+
+    def _is_numeric_field(self, field: str) -> tuple[bool, bool]:
+        """
+        Check if a field is numeric.
+
+        Returns:
+            (is_numeric, is_integer) tuple
+        """
+        if field in ('tier', 'year'):
+            return (True, True)
+        elif field.endswith('_value') or field.endswith('_amount'):
+            return (True, False)
+        return (False, False)
 
     def _get_content_start_y(self) -> int:
         """Get the starting Y position for content below the delete button."""
@@ -231,7 +388,6 @@ class PropertiesPanel:
             x=self.x + PADDING,
             y=start_y,
             font_size=12,
-
             color=(100, 200, 255, 255)
         ).draw()
 
@@ -457,7 +613,9 @@ class PropertiesPanel:
     def on_mouse_press(self, x: int, y: int, button: int) -> bool:
         """Handle mouse press. Returns True if handled."""
         if not (self.x <= x <= self.x + self.width and self.y <= y <= self.y + self.height):
-            # Clicked outside panel - deactivate editing
+            # Clicked outside panel - validate and deactivate editing
+            if self.active_field and self.upgrade:
+                self._validate_and_blur_field()
             self.active_field = None
             self.is_editing = False
             return False
@@ -466,6 +624,9 @@ class PropertiesPanel:
         for btn in self.buttons:
             if (btn['x'] <= x <= btn['x'] + btn['width'] and
                 btn['y'] <= y <= btn['y'] + btn['height']):
+                # Validate current field before handling button
+                if self.active_field and self.upgrade:
+                    self._validate_and_blur_field()
                 self._handle_button_click(btn['id'])
                 return True
 
@@ -478,13 +639,73 @@ class PropertiesPanel:
                     break
 
             if clicked_field:
+                # Validate previous field before switching
+                if self.active_field and self.active_field != clicked_field:
+                    self._validate_and_blur_field()
+
                 self.active_field = clicked_field
                 self.is_editing = True
             else:
+                # Clicked in panel but not on a field - validate and deactivate
+                if self.active_field:
+                    self._validate_and_blur_field()
                 self.active_field = None
                 self.is_editing = False
 
         return True
+
+    def _validate_and_blur_field(self):
+        """Validate the current active field and apply formatting."""
+        if not self.active_field or not self.upgrade:
+            return
+
+        is_numeric, is_integer = self._is_numeric_field(self.active_field)
+
+        if is_numeric:
+            current_value = self._get_field_value_string(self.active_field)
+
+            # Determine validation parameters based on field
+            if self.active_field == 'year':
+                validated_value = self._validate_numeric_field(
+                    current_value,
+                    is_integer=True,
+                    min_val=MIN_YEAR,
+                    max_val=MAX_YEAR
+                )
+            elif self.active_field == 'tier':
+                validated_value = self._validate_numeric_field(
+                    current_value,
+                    is_integer=True,
+                    min_val=-100,
+                    max_val=100
+                )
+            else:
+                # For effect values and cost amounts
+                validated_value = self._validate_numeric_field(
+                    current_value,
+                    is_integer=False,
+                    min_val=-100,
+                    max_val=100
+                )
+
+            # Update the field with validated value
+            if self.active_field == 'tier':
+                self.upgrade.tier = int(validated_value)
+            elif self.active_field == 'year':
+                self.upgrade.year = int(validated_value)
+            elif self.active_field.endswith('_value'):
+                parts = self.active_field.split('_')
+                index = int(parts[1])
+                if 0 <= index < len(self.upgrade.effects):
+                    self.upgrade.effects[index].value = validated_value
+            elif self.active_field.endswith('_amount'):
+                parts = self.active_field.split('_')
+                index = int(parts[1])
+                if 0 <= index < len(self.upgrade.cost):
+                    self.upgrade.cost[index].amount = validated_value
+
+            if self.on_property_changed:
+                self.on_property_changed(self.upgrade)
 
     def _handle_button_click(self, button_id: str):
         """Handle button click."""
@@ -523,77 +744,19 @@ class PropertiesPanel:
         if not self.active_field or not self.upgrade:
             return
 
-        field = self.active_field
+        is_numeric, is_integer = self._is_numeric_field(self.active_field)
 
-        # Main fields
-        if field == 'name':
-            self.upgrade.name += text
-        elif field == 'description':
-            self.upgrade.description += text
-        elif field == 'tier':
-            if text.isdigit() or (text == '-' and str(self.upgrade.tier) == '0'):
-                try:
-                    current = str(self.upgrade.tier)
-                    if current == '0':
-                        self.upgrade.tier = int(text)
-                    else:
-                        self.upgrade.tier = int(current + text)
-                except ValueError:
-                    pass
-        elif field == 'year':
-            if text.isdigit():
-                try:
-                    current = str(self.upgrade.year)
-                    self.upgrade.year = int(current + text)
-                except ValueError:
-                    pass
-        elif field == 'exclusive_group':
-            if self.upgrade.exclusive_group is None:
-                self.upgrade.exclusive_group = text
-            else:
-                self.upgrade.exclusive_group += text
+        if is_numeric:
+            # Handle numeric fields with formatting
+            current_value = self._get_field_value_string(self.active_field)
+            formatted = self._format_numeric_input(current_value, text, is_integer)
 
-        # Effect fields
-        elif field.startswith('effect_'):
-            parts = field.split('_')
-            index = int(parts[1])
-            subfield = parts[2]
-            if 0 <= index < len(self.upgrade.effects):
-                effect = self.upgrade.effects[index]
-                if subfield == 'resource':
-                    effect.resource += text
-                elif subfield == 'effect':
-                    effect.effect += text
-                elif subfield == 'value':
-                    try:
-                        current = str(effect.value)
-                        if text.isdigit() or text == '.' or (text == '-' and current == '0.0'):
-                            if current == '0.0' or current == '0':
-                                effect.value = float(text) if text != '.' else 0.0
-                            else:
-                                effect.value = float(current + text)
-                    except ValueError:
-                        pass
-
-        # Cost fields
-        elif field.startswith('cost_'):
-            parts = field.split('_')
-            index = int(parts[1])
-            subfield = parts[2]
-            if 0 <= index < len(self.upgrade.cost):
-                cost = self.upgrade.cost[index]
-                if subfield == 'resource':
-                    cost.resource += text
-                elif subfield == 'amount':
-                    try:
-                        current = str(cost.amount)
-                        if text.isdigit() or text == '.' or (text == '-' and current == '0.0'):
-                            if current == '0.0' or current == '0':
-                                cost.amount = float(text) if text != '.' else 0.0
-                            else:
-                                cost.amount = float(current + text)
-                    except ValueError:
-                        pass
+            if formatted is not None:
+                self._set_field_value_string(self.active_field, formatted)
+        else:
+            # Handle text fields normally
+            current_value = self._get_field_value_string(self.active_field)
+            self._set_field_value_string(self.active_field, current_value + text)
 
         if self.on_property_changed:
             self.on_property_changed(self.upgrade)
@@ -606,57 +769,14 @@ class PropertiesPanel:
         from pyglet.window import key
 
         if motion == key.MOTION_BACKSPACE:
-            field = self.active_field
+            current_value = self._get_field_value_string(self.active_field)
 
-            if field == 'name' and self.upgrade.name:
-                self.upgrade.name = self.upgrade.name[:-1]
-            elif field == 'description' and self.upgrade.description:
-                self.upgrade.description = self.upgrade.description[:-1]
-            elif field == 'tier':
-                tier_str = str(self.upgrade.tier)[:-1]
-                self.upgrade.tier = int(tier_str) if tier_str and tier_str != '-' else 0
-            elif field == 'year':
-                year_str = str(self.upgrade.year)[:-1]
-                self.upgrade.year = int(year_str) if year_str else 1800
-            elif field == 'exclusive_group' and self.upgrade.exclusive_group:
-                self.upgrade.exclusive_group = self.upgrade.exclusive_group[:-1] or None
+            if current_value:
+                new_value = current_value[:-1]
+                self._set_field_value_string(self.active_field, new_value)
 
-            # Effect fields
-            elif field.startswith('effect_'):
-                parts = field.split('_')
-                index = int(parts[1])
-                subfield = parts[2]
-                if 0 <= index < len(self.upgrade.effects):
-                    effect = self.upgrade.effects[index]
-                    if subfield == 'resource' and effect.resource:
-                        effect.resource = effect.resource[:-1]
-                    elif subfield == 'effect' and effect.effect:
-                        effect.effect = effect.effect[:-1]
-                    elif subfield == 'value':
-                        val_str = str(effect.value)[:-1]
-                        try:
-                            effect.value = float(val_str) if val_str and val_str not in ('-', '.', '-.') else 0.0
-                        except ValueError:
-                            effect.value = 0.0
-
-            # Cost fields
-            elif field.startswith('cost_'):
-                parts = field.split('_')
-                index = int(parts[1])
-                subfield = parts[2]
-                if 0 <= index < len(self.upgrade.cost):
-                    cost = self.upgrade.cost[index]
-                    if subfield == 'resource' and cost.resource:
-                        cost.resource = cost.resource[:-1]
-                    elif subfield == 'amount':
-                        amt_str = str(cost.amount)[:-1]
-                        try:
-                            cost.amount = float(amt_str) if amt_str and amt_str not in ('-', '.', '-.') else 0.0
-                        except ValueError:
-                            cost.amount = 0.0
-
-            if self.on_property_changed:
-                self.on_property_changed(self.upgrade)
+                if self.on_property_changed:
+                    self.on_property_changed(self.upgrade)
 
     def on_mouse_scroll(self, x: int, y: int, scroll_x: float, scroll_y: float):
         """Handle mouse scroll."""
