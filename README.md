@@ -1,19 +1,4 @@
-```markdown
-# Tech Tree Editor
-
-A visual editor for creating and managing technology trees for strategy games. Built with Python and Pyglet.
-
-![Tech Tree Editor](screenshot.png)
-
-## Features
-
-- 🎨 Visual node-based editor with drag-and-drop
-- 🔗 Create dependencies between upgrades
-- 📝 Edit upgrade properties (name, description, costs, effects)
-- 💾 Save/load tech trees in YAML format
-- 🎯 Auto-layout for organizing nodes
-- 🔍 Pan and zoom canvas
-- ⌨️ Keyboard shortcuts for quick editing
+90% vibes
 
 ## Requirements
 
