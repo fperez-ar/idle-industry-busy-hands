@@ -1,21 +1,33 @@
 trees:
-  - id: technology
-    name: Technology
-    description: Scientific and industrial advancements
-    icon: ⚙️
-    filepath: data/tech_tree.yml
+  # - id: technology
+  #   name: Technology
+  #   description: Scientific and industrial advancements
+  #   icon: ⚙️
+  #   filepath: data/tech_tree.yml
 
-  - id: society
-    name: Society
-    description: Social and political developments
-    icon: 🏛️
-    filepath: data/soc_tree.yml
+  # - id: society
+  #   name: Society
+  #   description: Social and political developments
+  #   icon: 🏛️
+  #   filepath: data/soc_tree.yml
 
-  - id: personal
-    name: Personal action
-    description: Actions
-    icon: 🏛️
-    filepath: data/actions_tree.yml
+  - id: philosophy
+    name: Philosophy
+    description: Philosophy
+    icon: Ⲫ
+    filepath: data/idea_tree.yml
+
+  - id: philosophy_2
+    name: Philosophy 2
+    description: Philosophy
+    icon: Ⲫ
+    filepath: data/ideas_tree.yml
+
+  - id: test
+    name: test
+    description: test
+    icon: '?'
+    filepath: data/test_tree.yml
 
 # Optional: upgrades can still be defined here if not using separate files
 # upgrades: []

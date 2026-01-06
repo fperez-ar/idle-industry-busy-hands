@@ -93,7 +93,8 @@ class Game(Window):
                 y=0,
                 width=tree_area_width,
                 height=self.height,
-                tree=tree
+                tree=tree,
+                game_state=self.game_state
             )
 
     def on_year_changed(self, new_year: int):
@@ -114,9 +115,10 @@ class Game(Window):
         """Main update loop."""
         # Update time system
         self.time_system.update(dt)
+        time_scale = self.time_system.get_effective_time_scale()
 
         # Update game state
-        self.game_state.update(dt)
+        self.game_state.update(dt, time_scale)
 
         # Update UI
         self.resource_panel.update()
@@ -244,7 +246,7 @@ class Game(Window):
         """Handle keyboard input."""
         # ESC to quit
         if symbol == key.ESCAPE:
-            print("👋 Exiting game...")
+            print("Exiting game...")
             self.close()
             return
 

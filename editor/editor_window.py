@@ -13,8 +13,11 @@ from editor.editor_sidebar import EditorSidebar
 from editor.editor_properties import PropertiesPanel
 from editor.editor_popup import AddNodePopup, AddEffectPopup, AddCostPopup
 
-MIN_YEAR = 0.0
-MAX_YEAR = 10000000.0
+MIN_YEAR = 0
+MAX_YEAR = 10000000
+
+MIN_TIER = 0
+MAX_TIER = 100
 
 class EditorWindow(Window):
     """Main editor window."""
@@ -50,6 +53,11 @@ class EditorWindow(Window):
               'year':{
                 'min': MIN_YEAR,
                 'max': MAX_YEAR
+              },
+              'tier': {
+                'min': MIN_TIER,
+                'max': MAX_TIER
+
               }
             }
         )
@@ -330,12 +338,12 @@ class EditorWindow(Window):
                 upgrade = self._parse_upgrade(upgrade_data)
 
                 # Get position
-                pos = upgrade_data.get('editor_position', {'x': 0, 'y': 0})
+                # pos = upgrade_data.get('editor_position', {'x': 0, 'y': 0})
 
                 node = EditorNode(
                     upgrade=upgrade,
-                    x=pos['x'],
-                    y=pos['y']
+                    # x=pos['x'],
+                    # y=pos['y']
                 )
                 self.nodes[upgrade.id] = node
 
@@ -370,10 +378,10 @@ class EditorWindow(Window):
 
             for node in self.nodes.values():
                 upgrade_data = self._serialize_upgrade(node.upgrade)
-                upgrade_data['editor_position'] = {
-                    'x': node.x,
-                    'y': node.y
-                }
+                # upgrade_data['editor_position'] = {
+                #     'x': node.x,
+                #     'y': node.y
+                # }
                 data['upgrades'].append(upgrade_data)
 
             # Ensure directory exists
@@ -657,7 +665,7 @@ class EditorNode:
 
     NODE_RADIUS = 30
 
-    def __init__(self, upgrade: Upgrade, x: float, y: float):
+    def __init__(self, upgrade: Upgrade, x: float = 0, y: float = 0):
         self.upgrade = upgrade
         self.x = x
         self.y = y

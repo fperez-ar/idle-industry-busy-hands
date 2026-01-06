@@ -53,10 +53,14 @@ class GameState:
             return True
 
         # Check if another upgrade from this group is already owned
-        group = upgrade.exclusive_group
-        if group in self.selected_exclusive:
-            # Only available if this specific upgrade was already selected
-            return self.selected_exclusive[group] == upgrade.id
+
+        groups = upgrade.exclusive_group if isinstance(upgrade.exclusive_group, list) else [upgrade.exclusive_group]
+
+        for group in groups:
+          if group in self.selected_exclusive:
+              # Only available if this specific upgrade was already selected
+              if self.selected_exclusive[group] != upgrade.id:
+                  return False
 
         return True
 
@@ -138,7 +142,9 @@ class GameState:
 
         # Track exclusive group selection
         if upgrade.exclusive_group:
-            self.selected_exclusive[upgrade.exclusive_group] = upgrade_id
+            groups = upgrade.exclusive_group if isinstance(upgrade.exclusive_group, list) else [upgrade.exclusive_group]
+            for group in groups:
+                self.selected_exclusive[group] = upgrade_id
 
         # Recalculate production with new upgrade
         self.resource_manager.recalculate_production(
@@ -147,6 +153,7 @@ class GameState:
         )
 
         return True
+
 
     def get_upgrade_status(self, upgrade_id: str) -> str:
         """Get a human-readable status for an upgrade."""
@@ -226,13 +233,13 @@ class GameState:
             'years_until_next_unlock': (next_year - self.current_year) if next_year else None
         }
 
-    def update(self, dt: float):
-        """Update game state each frame."""
-        # Update resources
-        self.resource_manager.update(dt)
+    def update(self, dt: float, time_scale: float = 1.0):
+        """Update game state with time scaling."""
+        # Scale dt by time_scale
+        scaled_dt = dt * time_scale
 
-        # Time system is updated separately in Game class
-        # This allows for better separation of concerns
+        # Update resources with scaled time
+        self.resource_manager.update(scaled_dt)
 
     def reset(self):
         """Reset game state to initial conditions."""
@@ -252,10 +259,12 @@ class GameState:
 
     def get_exclusive_group_info(self, group_name: str) -> Dict[str, any]:
         """Get information about an exclusive group."""
-        upgrades_in_group = [
-            upgrade for upgrade in self.all_upgrades.values()
-            if upgrade.exclusive_group == group_name
-        ]
+        upgrades_in_group = []
+        for upgrade in self.all_upgrades.values():
+            if upgrade.exclusive_group:
+                groups = upgrade.exclusive_group if isinstance(upgrade.exclusive_group, list) else [upgrade.exclusive_group]
+                if group_name in groups:
+                    upgrades_in_group.append(upgrade)
 
         selected_id = self.selected_exclusive.get(group_name)
         selected_upgrade = None

@@ -1,0 +1,606 @@
+tree:
+  id: phi_tree
+  name: Philosophical curents
+  description: Repertoire of ideas
+  icon: Ⲫ
+
+upgrades:
+- id: pre_socratic_philosophy
+  name: Pre-Socratic Philosophy
+  description: Early Greek thinkers seek natural explanations for the cosmos beyond mythology.
+  tier: 0
+  year: -600
+  cost:
+  - resource: philosophy
+    amount: 5
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: []
+
+- id: pythagoreanism
+  name: Pythagoreanism
+  description: Reality is fundamentally mathematical and numerical in nature.
+  tier: 1
+  year: -530
+  cost:
+  - resource: philosophy
+    amount: 6
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [pre_socratic_philosophy]
+
+- id: heraclitean_flux
+  name: Heraclitean Flux
+  description: All things are in constant change and becoming.
+  tier: 3
+  year: -500
+  cost:
+  - resource: philosophy
+    amount: 7
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: presoc_nature_of_essence
+  requires: [pre_socratic_philosophy]
+
+- id: parmenidean_being
+  name: Parmenidean Being
+  description: True reality is unchanging and eternal being.
+  tier: 3
+  year: -475
+  cost:
+  - resource: philosophy
+    amount: 8
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: presoc_nature_of_essence
+  requires: [pre_socratic_philosophy]
+
+- id: atomism
+  name: Atomism
+  description: All matter consists of indivisible atoms moving in void.
+  tier: 2
+  year: -450
+  cost:
+  - resource: philosophy
+    amount: 10
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [pre_socratic_philosophy]
+
+- id: sophism
+  name: Sophism
+  description: Truth is relative and rhetoric can make the weaker argument appear stronger.
+  tier: 2
+  year: -440
+  cost:
+  - resource: philosophy
+    amount: 11
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: presoc_nature_of_truth
+  requires: [pre_socratic_philosophy]
+
+- id: socratic_method
+  name: Socratic Method
+  description: Knowledge emerges through systematic questioning and examination of beliefs.
+  tier: 2
+  year: -420
+  cost:
+  - resource: philosophy
+    amount: 13
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: presoc_nature_of_truth
+  requires: [pre_socratic_philosophy]
+
+- id: platonic_forms
+  name: Platonic Forms
+  description: Abstract perfect forms exist beyond the material world as true reality.
+  tier: 3
+  year: -380
+  cost:
+  - resource: philosophy
+    amount: 15
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: soc_idealism_materialism
+  requires: [socratic_method]
+
+- id: aristotelian_logic
+  name: Aristotelian Logic
+  description: Systematic rules govern valid reasoning and syllogistic inference.
+  tier: 3
+  year: -350
+  cost:
+  - resource: philosophy
+    amount: 17
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: soc_idealism_materialism
+  requires: []
+
+- id: aristotelian_metaphysics
+  name: Aristotelian Metaphysics
+  description: Substances possess form and matter with potentiality actualizing through change.
+  tier: 4
+  year: -340
+  cost:
+  - resource: philosophy
+    amount: 18
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [aristotelian_logic]
+
+- id: cynicism
+  name: Cynicism
+  description: Virtue lies in living naturally and rejecting social conventions and material desires.
+  tier: 5
+  year: -330
+  cost:
+  - resource: philosophy
+    amount: 20
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [socratic_method]
+
+- id: epicureanism
+  name: Epicureanism
+  description: Pleasure and absence of pain constitute the highest good and happiness.
+  tier: 5
+  year: -300
+  cost:
+  - resource: philosophy
+    amount: 21
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: epicureanism_stoicism
+  requires: [atomism]
+
+- id: stoicism
+  name: Stoicism
+  description: Virtue and reason enable acceptance of fate and control over one's reactions.
+  tier: 5
+  year: -300
+  cost:
+  - resource: philosophy
+    amount: 22
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: epicureanism_stoicism
+  requires: [cynicism]
+
+- id: skepticism
+  name: Skepticism
+  description: Suspension of judgment about truth claims leads to tranquility.
+  tier: 5
+  year: -270
+  cost:
+  - resource: philosophy
+    amount: 24
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [sophism]
+
+- id: neoplatonism
+  name: Neoplatonism
+  description: Reality emanates from a transcendent One through hierarchical levels of being.
+  tier: 14
+  year: 250
+  cost:
+  - resource: philosophy
+    amount: 26
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [platonic_forms]
+
+- id: augustinian_theology
+  name: Augustinian Theology
+  description: Divine grace and faith supersede human reason in achieving salvation.
+  tier: 15
+  year: 400
+  cost:
+  - resource: philosophy
+    amount: 28
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [neoplatonism]
+
+- id: boethian_consolation
+  name: Boethian Consolation
+  description: Philosophy provides comfort through understanding providence and fortune.
+  tier: 16
+  year: 524
+  cost:
+  - resource: philosophy
+    amount: 30
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [augustinian_theology]
+
+- id: islamic_philosophy
+  name: Islamic Philosophy
+  description: Greek philosophy integrates with Islamic theology to explore reason and revelation.
+  tier: 17
+  year: 800
+  cost:
+  - resource: philosophy
+    amount: 32
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [aristotelian_metaphysics]
+
+- id: avicennian_metaphysics
+  name: Avicennian Metaphysics
+  description: Essence and existence are distinct with the Necessary Being as ultimate cause.
+  tier: 18
+  year: 1020
+  cost:
+  - resource: philosophy
+    amount: 34
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [islamic_philosophy]
+
+- id: scholasticism
+  name: Scholasticism
+  description: Systematic theological inquiry harmonizes faith with Aristotelian reason.
+  tier: 19
+  year: 1100
+  cost:
+  - resource: philosophy
+    amount: 36
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [augustinian_theology]
+
+- id: averroism
+  name: Averroism
+  description: Philosophy and theology operate as separate domains with distinct truths.
+  tier: 20
+  year: 1150
+  cost:
+  - resource: philosophy
+    amount: 38
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [avicennian_metaphysics]
+
+- id: thomistic_synthesis
+  name: Thomistic Synthesis
+  description: Faith and reason complement each other in understanding divine and natural truth.
+  tier: 21
+  year: 1270
+  cost:
+  - resource: philosophy
+    amount: 41
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [scholasticism, averroism]
+
+- id: nominalism
+  name: Nominalism
+  description: Universals are merely names without independent existence beyond particulars.
+  tier: 22
+  year: 1320
+  cost:
+  - resource: philosophy
+    amount: 43
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [scholasticism]
+
+- id: humanism
+  name: Humanism
+  description: Human dignity and classical learning take precedence over scholastic theology.
+  tier: 23
+  year: 1400
+  cost:
+  - resource: philosophy
+    amount: 45
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [nominalism]
+
+- id: machiavellian_realism
+  name: Machiavellian Realism
+  description: Political power requires pragmatic action unconstrained by conventional morality.
+  tier: 24
+  year: 1513
+  cost:
+  - resource: philosophy
+    amount: 47
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [humanism]
+
+- id: cartesian_dualism
+  name: Cartesian Dualism
+  description: Mind and body are fundamentally distinct substances interacting causally.
+  tier: 25
+  year: 1641
+  cost:
+  - resource: philosophy
+    amount: 50
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: null
+  requires: [humanism]
+
+- id: hobbesian_materialism
+  name: Hobbesian Materialism
+  description: All phenomena including thought reduce to matter in motion.
+  tier: 26
+  year: 1651
+  cost:
+  - resource: philosophy
+    amount: 52
+  effects:
+  - resource: philosophy
+    effect: add
+    value:  1
+  exclusive_group: idealism_materialism
+  requires: [machiavellian_realism]
+
+- id: spinozist_monism
+  name: Spinozist Monism
+  description: God and nature are identical as a single infinite substance.
+  tier: 27
+  year: 1677
+  cost:
+  - resource: philosophy
+    amount: 54
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [cartesian_dualism]
+
+- id: lockean_empiricism
+  name: Lockean Empiricism
+  description: All knowledge derives from sensory experience rather than innate ideas.
+  tier: 28
+  year: 1689
+  cost:
+  - resource: philosophy
+    amount: 57
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [cartesian_dualism]
+
+- id: leibnizian_monadology
+  name: Leibnizian Monadology
+  description: Reality consists of simple indivisible monads in pre-established harmony.
+  tier: 29
+  year: 1714
+  cost:
+  - resource: philosophy
+    amount: 59
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [spinozist_monism]
+
+- id: berkeley_idealism
+  name: Berkeley Idealism
+  description: Material objects exist only as perceptions in minds.
+  tier: 30
+  year: 1710
+  cost:
+  - resource: philosophy
+    amount: 61
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: idealism_materialism
+  requires: [lockean_empiricism]
+
+- id: humean_skepticism
+  name: Humean Skepticism
+  description: Causation and induction lack rational justification beyond custom and habit.
+  tier: 31
+  year: 1748
+  cost:
+  - resource: philosophy
+    amount: 64
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [lockean_empiricism]
+
+- id: rousseauian_social_contract
+  name: Rousseauian Social Contract
+  description: Legitimate political authority derives from the general will of the people.
+  tier: 32
+  year: 1762
+  cost:
+  - resource: philosophy
+    amount: 66
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [machiavellian_realism]
+
+- id: kantian_critical_philosophy
+  name: Kantian Critical Philosophy
+  description: Knowledge requires both sensory experience and innate conceptual structures.
+  tier: 33
+  year: 1781
+  cost:
+  - resource: philosophy
+    amount: 69
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [humean_skepticism]
+
+- id: kantian_ethics
+  name: Kantian Ethics
+  description: Moral duty derives from rational categorical imperatives universally applicable.
+  tier: 34
+  year: 1785
+  cost:
+  - resource: philosophy
+    amount: 72
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [kantian_critical_philosophy]
+
+- id: hegelian_dialectic
+  name: Hegelian Dialectic
+  description: Reality unfolds through thesis-antithesis-synthesis toward absolute spirit.
+  tier: 35
+  year: 1807
+  cost:
+  - resource: philosophy
+    amount: 75
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [kantian_critical_philosophy]
+
+- id: schopenhauerian_pessimism
+  name: Schopenhauerian Pessimism
+  description: Blind will underlies reality causing inevitable suffering and desire.
+  tier: 35
+  year: 1818
+  cost:
+  - resource: philosophy
+    amount: 77
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [kantian_critical_philosophy]
+
+- id: comtean_positivism
+  name: Comtean Positivism
+  description: Scientific observation provides the only valid knowledge replacing theology and metaphysics.
+  tier: 35
+  year: 1830
+  cost:
+  - resource: philosophy
+    amount: 80
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [humean_skepticism]
+
+- id: kierkegaardian_existentialism
+  name: Kierkegaardian Existentialism
+  description: Subjective individual existence and authentic choice precede abstract essence.
+  tier: 36
+  year: 1843
+  cost:
+  - resource: philosophy
+    amount: 83
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [hegelian_dialectic]
+
+- id: marxist_materialism
+  name: Marxist Materialism
+  description: Material economic conditions determine social consciousness and historical development.
+  tier: 36
+  year: 1867
+  cost:
+  - resource: philosophy
+    amount: 86
+  effects:
+  - resource: philosophy
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [hegelian_dialectic]

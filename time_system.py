@@ -47,6 +47,11 @@ class TimeSystem:
         """Get progress to next year as percentage (0-100)."""
         return self.year_progress * 100
 
+    def get_effective_time_scale(self) -> float:
+        """Get the effective time scale (0.0 when paused, multiplier otherwise)."""
+        if self.paused:
+            return 0.0
+        return self.time_multiplier
 
 class TimeControlUI:
     """UI for controlling time progression."""

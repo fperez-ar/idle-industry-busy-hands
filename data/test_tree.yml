@@ -1,0 +1,16 @@
+upgrades:
+  - id: test_id_1
+    name: test id
+    description:
+    tier: 0
+    year: 0
+    cost: []
+    effects:
+      - resource: philosophy
+        effect: add
+        value: 20
+      - resource: philosophy
+        effect: mult
+        value: 20
+    exclusive_group: null
+    requires: []

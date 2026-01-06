@@ -1,16 +1,19 @@
 # ui/tree_view.py (continued and complete)
+from typing import Dict, List, Optional, Tuple, Set
 
 import pyglet
 from pyglet.text import Label
 from pyglet.shapes import Rectangle, Line
 from pyglet.graphics import Batch
-from typing import Dict, List, Optional, Tuple
 
 from loader import Upgrade, UpgradeTree
 from ui.tooltip import Tooltip
 
 TREE_BG_COLOR = (25, 25, 30)
 EXCLUSIVE_GROUP_COLOR = (200, 150, 50)
+
+TREE_HORIZONTAL_SPACING = 80
+TREE_VERTICAL_SPACING = 40
 
 class Camera:
     """Handles zoom and pan transformations for the tree view."""
@@ -24,9 +27,9 @@ class Camera:
         self.y: float = 0.0
 
         # Zoom level (1.0 = 100%)
-        self.zoom: float = 2.0
-        self.min_zoom: float = 0.25
-        self.max_zoom: float = 3.0
+        self.zoom: float = 1.5
+        self.min_zoom: float = 0.1
+        self.max_zoom: float = 5.0
 
         # Pan state
         self.is_panning: bool = False
@@ -136,6 +139,7 @@ class TreeNode:
             self.world_y + self.NODE_HEIGHT / 2
         )
 
+    @DeprecationWarning
     def get_top_center(self) -> Tuple[float, float]:
         """Get top center point for incoming connections."""
         return (
@@ -143,11 +147,26 @@ class TreeNode:
             self.world_y + self.NODE_HEIGHT
         )
 
+    @DeprecationWarning
     def get_bottom_center(self) -> Tuple[float, float]:
         """Get bottom center point for outgoing connections."""
         return (
             self.world_x + self.NODE_WIDTH / 2,
             self.world_y
+        )
+
+    def get_left_center(self) -> Tuple[float, float]:
+        """Get left center point for incoming connections."""
+        return (
+            self.world_x,
+            self.world_y + self.NODE_HEIGHT / 2
+        )
+
+    def get_right_center(self) -> Tuple[float, float]:
+        """Get right center point for outgoing connections."""
+        return (
+            self.world_x + self.NODE_WIDTH,
+            self.world_y + self.NODE_HEIGHT / 2
         )
 
     def contains_point(self, world_x: float, world_y: float) -> bool:
@@ -177,11 +196,20 @@ class ConnectionLine:
         self.to_node = to_node
         self.is_or_connection = is_or_connection
 
-    def get_points(self) -> Tuple[float, float, float, float]:
-        """Get start and end points for the line."""
-        start = self.from_node.get_top_center()
-        end = self.to_node.get_bottom_center()
-        return (*start, *end)
+    def get_points(self) -> List[Tuple[float, float]]:
+        """Get points for the connection line (may include intermediate points for curves)."""
+        start_x, start_y = self.from_node.get_right_center()
+        end_x, end_y = self.to_node.get_left_center()
+
+        # Calculate control points for a smooth curve
+        mid_x = (start_x + end_x) / 2
+
+        return [
+            (start_x, start_y),
+            (mid_x, start_y),
+            (mid_x, end_y),
+            (end_x, end_y)
+        ]
 
     def get_color(self) -> Tuple[int, int, int]:
         """Get line color based on connection type and node states."""
@@ -192,7 +220,6 @@ class ConnectionLine:
         else:
             return (120, 120, 120)  # Gray for unsatisfied
 
-
 class InteractiveTreeView:
     """A zoomable, pannable view of an upgrade tree."""
 
@@ -202,7 +229,8 @@ class InteractiveTreeView:
         y: int,
         width: int,
         height: int,
-        tree: UpgradeTree
+        tree: UpgradeTree,
+        game_state=None
     ):
         self.x = x
         self.y = y
@@ -222,22 +250,133 @@ class InteractiveTreeView:
         self._create_connections()
 
         # Center camera on tree
-        self._center_camera()
+        self._center_camera_on_tier(0) # self._center_camera()
 
         # Tooltip
         self.tooltip = Tooltip()
         self.hovered_node_id: Optional[str] = None
+        self.game_state = game_state
 
-    def update(self, dt: float):
-        """Update tree view (for tooltip timing)."""
-        self.tooltip.update(dt)
+    def _get_root_nodes(self) -> List[Upgrade]:
+      """Find all root nodes (nodes with no requirements)."""
+      roots = []
+      for upgrade in self.tree.upgrades.values():
+          if not upgrade.requires:
+              roots.append(upgrade)
+      return sorted(roots, key=lambda u: (u.tier, u.exclusive_group or '', u.id))
+
+    def _get_children(self, parent_id: str) -> List[Upgrade]:
+        """Get all upgrades that directly require this upgrade."""
+        children = []
+        for upgrade in self.tree.upgrades.values():
+            # Check if parent_id is in requirements
+            for req in upgrade.requires:
+                if isinstance(req, list):
+                    # OR requirement
+                    if parent_id in req:
+                        children.append(upgrade)
+                        break
+                else:
+                    # Direct requirement
+                    if req == parent_id:
+                        children.append(upgrade)
+                        break
+        return sorted(children, key=lambda u: (u.tier, u.exclusive_group or '', u.id))
+
+    def _calculate_subtree_height(self, upgrade_id: str, memo: Dict[str, int]) -> int:
+        """Calculate the number of leaf nodes in a subtree (for spacing)."""
+        if upgrade_id in memo:
+            return memo[upgrade_id]
+
+        children = self._get_children(upgrade_id)
+        if not children:
+            memo[upgrade_id] = 1
+            return 1
+
+        total_height = sum(self._calculate_subtree_height(child.id, memo) for child in children)
+        memo[upgrade_id] = total_height
+        return total_height
 
     def _layout_tree(self):
-        """Calculate positions for all nodes in the tree."""
+        """Calculate positions for all nodes using a tree layout algorithm."""
         if not self.tree.upgrades:
             return
 
-        # Group upgrades by tier
+        # Layout parameters
+        node_width = TreeNode.NODE_WIDTH
+        node_height = TreeNode.NODE_HEIGHT
+        h_spacing = 80
+        v_spacing = 20
+
+        # Find root nodes
+        roots = self._get_root_nodes()
+        if not roots:
+            self._layout_tree_by_tier()
+            return
+
+        # Calculate subtree heights for all nodes
+        subtree_heights: Dict[str, int] = {}
+        for upgrade in self.tree.upgrades.values():
+            self._calculate_subtree_height(upgrade.id, subtree_heights)
+
+        # Track which nodes have been positioned
+        positioned: Set[str] = set()
+
+        # Position nodes level by level
+        def position_node(upgrade: Upgrade, x: float, y_start: float, y_end: float) -> float:
+            """Position a node and its children. Returns the actual space used."""
+            if upgrade.id in positioned:
+                return y_start  # No space used if already positioned
+
+            # Calculate this node's y position (centered in its allocated space)
+            node_y = (y_start + y_end) / 2 - node_height / 2
+
+            # Create the node
+            self.nodes[upgrade.id] = TreeNode(upgrade, x, node_y)
+            positioned.add(upgrade.id)
+
+            # Get children that haven't been positioned yet
+            children = [c for c in self._get_children(upgrade.id) if c.id not in positioned]
+
+            if not children:
+                return y_start + node_height + v_spacing
+
+            # Calculate space for children
+            child_x = x + node_width + h_spacing
+            current_y = y_start
+
+            for child in children:
+                child_height = subtree_heights.get(child.id, 1)
+                child_space = child_height * (node_height + v_spacing)
+                actual_space_used = position_node(child, child_x, current_y, current_y + child_space)
+                current_y = actual_space_used
+
+            return current_y
+
+        # Position all root nodes and their subtrees
+        start_x = 0
+        current_y = 0
+
+        for root in roots:
+            if root.id not in positioned:
+                root_height = subtree_heights.get(root.id, 1)
+                root_space = root_height * (node_height + v_spacing)
+                actual_space = position_node(root, start_x, current_y, current_y + root_space)
+                current_y = actual_space + v_spacing  # Use actual space instead of allocated space
+
+        # Handle any orphaned nodes (nodes with requirements but not connected)
+        orphans = [u for u in self.tree.upgrades.values() if u.id not in positioned]
+        if orphans:
+            # Position orphans to the right
+            orphan_x = start_x + (node_width + h_spacing) * 3
+            orphan_y = 0
+            for orphan in orphans:
+                self.nodes[orphan.id] = TreeNode(orphan, orphan_x, orphan_y)
+                positioned.add(orphan.id)
+                orphan_y += node_height + v_spacing
+
+    def _layout_tree_by_tier(self):
+        """Fallback layout method using tiers."""
         tiers: Dict[int, List[Upgrade]] = {}
         for upgrade in self.tree.upgrades.values():
             tier = upgrade.tier
@@ -245,28 +384,20 @@ class InteractiveTreeView:
                 tiers[tier] = []
             tiers[tier].append(upgrade)
 
-        # Layout parameters
         node_width = TreeNode.NODE_WIDTH
         node_height = TreeNode.NODE_HEIGHT
-        h_spacing = 50
-        v_spacing = 80
+        h_spacing = TREE_HORIZONTAL_SPACING
+        v_spacing = TREE_VERTICAL_SPACING
 
-        # Position nodes by tier (bottom-up: tier 0 at bottom)
-        for tier, upgrades in tiers.items():
-            # Sort by exclusive group for consistent layout
+        for tier, upgrades in sorted(tiers.items()):
             upgrades.sort(key=lambda u: (u.exclusive_group or '', u.id))
+            column_height = len(upgrades) * node_height + (len(upgrades) - 1) * v_spacing
+            start_y = -column_height / 2
+            tier_x = tier * (node_width + h_spacing)
 
-            # Calculate row width
-            row_width = len(upgrades) * node_width + (len(upgrades) - 1) * h_spacing
-            start_x = -row_width / 2
-
-            # Vertical position (tier 0 at y=0, higher tiers above)
-            tier_y = tier * (node_height + v_spacing)
-
-            # Position each node
             for i, upgrade in enumerate(upgrades):
-                node_x = start_x + i * (node_width + h_spacing)
-                node = TreeNode(upgrade, node_x, tier_y)
+                node_y = start_y + i * (node_height + v_spacing)
+                node = TreeNode(upgrade, tier_x, node_y)
                 self.nodes[upgrade.id] = node
 
     def _create_connections(self):
@@ -306,6 +437,29 @@ class InteractiveTreeView:
         self.camera.x = (min_x + max_x) / 2
         self.camera.y = (min_y + max_y) / 2
 
+    def _center_camera_on_tier(self, tier: int = 0):
+        """Center the camera on a specific tier."""
+        if not self.nodes:
+            return
+
+        # Find all nodes in the specified tier
+        tier_nodes = [node for node in self.nodes.values() if node.upgrade.tier == tier]
+
+        if not tier_nodes:
+            # If no nodes in that tier, fall back to centering on all nodes
+            self._center_camera()
+            return
+
+        # Calculate bounding box for this tier
+        min_x = min(n.world_x for n in tier_nodes)
+        max_x = max(n.world_x + TreeNode.NODE_WIDTH for n in tier_nodes)
+        min_y = min(n.world_y for n in tier_nodes)
+        max_y = max(n.world_y + TreeNode.NODE_HEIGHT for n in tier_nodes)
+
+        # Center camera on this tier
+        self.camera.x = (min_x + max_x) / 2
+        self.camera.y = (min_y + max_y) / 2
+
     def _get_view_offset(self) -> Tuple[float, float]:
         """Get the offset to apply for view-local coordinates."""
         return (
@@ -320,97 +474,50 @@ class InteractiveTreeView:
             self.y <= y <= self.y + self.height
         )
 
-    def draw(self, batch: Batch):
-        """Draw the tree view."""
-        # Enable scissor test for clipping
-        pyglet.gl.glEnable(pyglet.gl.GL_SCISSOR_TEST)
-        pyglet.gl.glScissor(int(self.x), int(self.y), int(self.width), int(self.height))
-
-        # Draw background
-        bg = Rectangle(self.x, self.y, self.width, self.height, color=TREE_BG_COLOR)
-        bg.draw()
-
-        offset_x, offset_y = self._get_view_offset()
-
-        # Draw connections first (behind nodes)
-        for conn in self.connections:
-            self._draw_connection(conn, offset_x, offset_y)
-
-        # Draw nodes
-        for node in self.nodes.values():
-            self._draw_node(node, offset_x, offset_y)
-
-        # Draw zoom indicator
-        zoom_label = Label(
-            f"Zoom: {self.camera.zoom:.0%}",
-            x=self.x + 10,
-            y=self.y + self.height - 25,
-            font_size=10,
-            color=(200, 200, 200, 255)
-        )
-        zoom_label.draw()
-
-        # Draw pan instructions
-        help_label = Label(
-            "Right-drag: Pan | Scroll: Zoom",
-            x=self.x + 10,
-            y=self.y + 10,
-            font_size=9,
-            color=(150, 150, 150, 255)
-        )
-        help_label.draw()
-
-        pyglet.gl.glDisable(pyglet.gl.GL_SCISSOR_TEST)
-
-        # Draw tooltip (outside scissor test so it can extend beyond tree area)
-        # Get window dimensions from the view
-        window_width = self.x + self.width
-        window_height = self.y + self.height
-        self.tooltip.draw(window_width * 2, window_height * 2)  # Generous bounds
-
-
     def _draw_connection(self, conn: ConnectionLine, offset_x: float, offset_y: float):
         """Draw a single connection line."""
-        start_x, start_y, end_x, end_y = conn.get_points()
-
-        # Transform to screen coordinates
-        screen_start = self.camera.world_to_screen(start_x, start_y)
-        screen_end = self.camera.world_to_screen(end_x, end_y)
-
-        # Apply offset
-        draw_start_x = offset_x + screen_start[0]
-        draw_start_y = offset_y + screen_start[1]
-        draw_end_x = offset_x + screen_end[0]
-        draw_end_y = offset_y + screen_end[1]
-
-        # Get color
+        points = conn.get_points()
         color = conn.get_color()
 
-        # Draw main line
-        line = Line(
-            draw_start_x, draw_start_y,
-            draw_end_x, draw_end_y,
-            color=color
-        )
-        line.draw()
+        # Draw line segments
+        for i in range(len(points) - 1):
+            start_x, start_y = points[i]
+            end_x, end_y = points[i + 1]
 
-        # For OR connections, draw additional parallel lines for thickness effect
+            # Unpack the tuples when calling world_to_screen
+            screen_start_x, screen_start_y = self.camera.world_to_screen(start_x, start_y)
+            screen_end_x, screen_end_y = self.camera.world_to_screen(end_x, end_y)
+
+            draw_start_x = offset_x + screen_start_x
+            draw_start_y = offset_y + screen_start_y
+            draw_end_x = offset_x + screen_end_x
+            draw_end_y = offset_y + screen_end_y
+
+            line = Line(draw_start_x, draw_start_y, draw_end_x, draw_end_y, color=color)
+            line.draw()
+
+            if conn.is_or_connection:
+                for offset_val in [-1, 1]:
+                    line2 = Line(
+                        draw_start_x + offset_val, draw_start_y,
+                        draw_end_x + offset_val, draw_end_y,
+                        color=color
+                    )
+                    line2.draw()
+
+        # Draw OR indicator at midpoint
         if conn.is_or_connection:
-            for offset in [-1, 1]:
-                line2 = Line(
-                    draw_start_x + offset, draw_start_y,
-                    draw_end_x + offset, draw_end_y,
-                    color=color
-                )
-                line2.draw()
+            mid_idx = len(points) // 2
+            mid_x, mid_y = points[mid_idx]
+            screen_mid_x, screen_mid_y = self.camera.world_to_screen(mid_x, mid_y)
 
-            # Draw OR indicator
-            mid_x = (draw_start_x + draw_end_x) / 2
-            mid_y = (draw_start_y + draw_end_y) / 2
+            label_x = offset_x + screen_mid_x
+            label_y = offset_y + screen_mid_y
+
             or_label = Label(
                 "OR",
-                x=mid_x,
-                y=mid_y,
+                x=label_x,
+                y=label_y,
                 anchor_x='center',
                 anchor_y='center',
                 font_size=8,
@@ -524,18 +631,123 @@ class InteractiveTreeView:
                 )
                 exclusive_label.draw()
 
-    def update_nodes(
-        self,
-        owned_upgrades: set,
-        available_upgrade_ids: set,
-        resource_manager
-    ):
-        """Update visual state of all nodes."""
+    def _get_all_descendants(self, upgrade_id: str, exclusive_only: bool = False) -> Set[str]:
+        """Get all descendants of an upgrade (recursively).
+        If exclusive_only is True, only include descendants that ONLY require this upgrade."""
+        descendants = set()
+
+        def collect_descendants(current_id: str):
+            children = self._get_children(current_id)
+            for child in children:
+                if child.id in descendants:
+                    continue  # Already processed
+
+                # If exclusive_only, check if this child has other requirements
+                if exclusive_only:
+                    other_reqs = []
+                    for req in child.requires:
+                        if isinstance(req, list):
+                            # OR requirement - check if current_id is the only option
+                            if current_id not in req:
+                                other_reqs.extend(req)
+                        else:
+                            # Direct requirement
+                            if req != current_id:
+                                other_reqs.append(req)
+
+                    # Skip this child if it has other requirements
+                    if other_reqs:
+                        continue
+
+                descendants.add(child.id)
+                collect_descendants(child.id)
+
+        collect_descendants(upgrade_id)
+        return descendants
+
+    def _get_hidden_nodes(self) -> Set[str]:
+        """Get set of node IDs that should be hidden based on exclusive group selections."""
+        hidden = set()
+        # if no game state return empty set
+        if not hasattr(self, 'game_state'):
+            return hidden
+
+        # Find all exclusive groups
+        exclusive_groups: Dict[str, List[str]] = {}
         for upgrade_id, node in self.nodes.items():
-            is_owned = upgrade_id in owned_upgrades
-            is_available = upgrade_id in available_upgrade_ids
-            is_affordable = resource_manager.can_afford(node.upgrade.cost)
-            node.update_state(is_owned, is_available, is_affordable)
+            if node.upgrade.exclusive_group:
+                groups = node.upgrade.exclusive_group if isinstance(node.upgrade.exclusive_group, list) else [node.upgrade.exclusive_group]
+                for group in groups:
+                    if group not in exclusive_groups:
+                        exclusive_groups[group] = []
+                    exclusive_groups[group].append(upgrade_id)
+
+        # For each exclusive group, hide unselected branches
+        for group, upgrade_ids in exclusive_groups.items():
+            selected_id = self.game_state.selected_exclusive.get(group)
+
+            if selected_id:
+                # Hide all other options in this group and their exclusive descendants
+                for upgrade_id in upgrade_ids:
+                    if upgrade_id != selected_id:
+                        hidden.add(upgrade_id)
+                        # Add all exclusive descendants
+                        descendants = self._get_all_descendants(upgrade_id, exclusive_only=True)
+                        hidden.update(descendants)
+
+        return hidden
+
+    def draw(self, batch: Batch):
+        """Draw the tree view."""
+        # Enable scissor test for clipping
+        pyglet.gl.glEnable(pyglet.gl.GL_SCISSOR_TEST)
+        pyglet.gl.glScissor(int(self.x), int(self.y), int(self.width), int(self.height))
+
+        # Draw background
+        bg = Rectangle(self.x, self.y, self.width, self.height, color=TREE_BG_COLOR)
+        bg.draw()
+
+        offset_x, offset_y = self._get_view_offset()
+
+        # Determine which nodes to hide based on exclusive group selections
+        hidden_nodes = self._get_hidden_nodes()
+
+        # Draw connections first (behind nodes) - skip hidden ones
+        for conn in self.connections:
+            if conn.from_node.upgrade.id not in hidden_nodes and conn.to_node.upgrade.id not in hidden_nodes:
+                self._draw_connection(conn, offset_x, offset_y)
+
+        # Draw nodes - skip hidden ones
+        for node in self.nodes.values():
+            if node.upgrade.id not in hidden_nodes:
+                self._draw_node(node, offset_x, offset_y)
+
+        # Draw zoom indicator
+        zoom_label = Label(
+            f"Zoom: {self.camera.zoom:.0%}",
+            x=self.x + 10,
+            y=self.y + self.height - 25,
+            font_size=10,
+            color=(200, 200, 200, 255)
+        )
+        zoom_label.draw()
+
+        # Draw pan instructions
+        help_label = Label(
+            "Right-drag: Pan | Scroll: Zoom",
+            x=self.x + 10,
+            y=self.y + 10,
+            font_size=9,
+            color=(150, 150, 150, 255)
+        )
+        help_label.draw()
+
+        pyglet.gl.glDisable(pyglet.gl.GL_SCISSOR_TEST)
+
+        # Draw tooltip (outside scissor test so it can extend beyond tree area)
+        window_width = self.x + self.width
+        window_height = self.y + self.height
+        self.tooltip.draw(window_width * 2, window_height * 2)
 
     def on_mouse_scroll(self, x: int, y: int, scroll_x: float, scroll_y: float):
         """Handle mouse scroll for zooming."""
@@ -647,3 +859,20 @@ class InteractiveTreeView:
         self.width = width
         self.height = height
         self.camera.resize(width, height)
+
+    def update(self, dt: float):
+        """Update tree view (for tooltip timing)."""
+        self.tooltip.update(dt)
+
+    def update_nodes(
+        self,
+        owned_upgrades: set,
+        available_upgrade_ids: set,
+        resource_manager
+    ):
+        """Update visual state of all nodes."""
+        for upgrade_id, node in self.nodes.items():
+            is_owned = upgrade_id in owned_upgrades
+            is_available = upgrade_id in available_upgrade_ids
+            is_affordable = resource_manager.can_afford(node.upgrade.cost)
+            node.update_state(is_owned, is_available, is_affordable)
