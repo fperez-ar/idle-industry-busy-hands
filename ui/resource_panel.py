@@ -1,30 +1,38 @@
-# ui/resource_panel.py
-
 import pyglet
 from pyglet.text import Label
 from pyglet.shapes import Rectangle
-from typing import Dict
+from typing import Dict, Optional
 
 from resources import ResourceManager, ResourceState
-
+from config import get_config
 
 class ResourcePanel:
-    """Displays all resources and their production rates in a horizontal layout."""
+    """Displays all resources with auto-extending width and conditional scrolling."""
 
-    # Scale factor for all UI elements (1.0 = normal, 1.5 = 50% larger, etc.)
-    UI_SCALE = 1.5
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        resource_manager: ResourceManager,
+        max_width: Optional[int] = None
+    ):
+        # Load UI scale from config
+        config = get_config()
+        self.UI_SCALE = config.get('ui.resource_panel_scale', 1.5)
 
-    def __init__(self, x: int, y: int, width: int, height: int, resource_manager: ResourceManager):
         self.x = x
         self.y = y
-        self.width = width
+        self.base_width = width
         self.height = height
         self.resource_manager = resource_manager
+        self.max_width = max_width  # Will be set by parent
 
         self.batch = pyglet.graphics.Batch()
         self.labels: Dict[str, Dict[str, Label]] = {}
 
-        # Scrolling (horizontal) - scaled
+        # Scrolling (horizontal)
         self.scroll_x = 0
         self.column_width = int(140 * self.UI_SCALE)
         self.padding = int(15 * self.UI_SCALE)
@@ -53,23 +61,55 @@ class ResourcePanel:
         self.indicator_font_size = int(16 * self.UI_SCALE)
         self.indicator_margin = int(10 * self.UI_SCALE)
 
-        # Calculate content width
-        num_resources = len(resource_manager.resources)
+        # Calculate dimensions
+        self._calculate_dimensions()
+        self._create_ui()
+
+    def _calculate_dimensions(self):
+        """Calculate content width and actual panel width."""
+        num_resources = len(self.resource_manager.resources)
+
+        # Calculate required content width
         self.content_width = (num_resources * self.column_width) + ((num_resources + 1) * self.padding)
+
+        # Determine actual panel width (auto-extend up to max_width)
+        if self.max_width is not None:
+            # Auto-extend: use content width if it fits, otherwise use max_width
+            self.width = min(self.content_width, self.max_width)
+        else:
+            # No max specified, use base width
+            self.width = self.base_width
+
+        # Calculate if scrolling is needed
+        self.scrolling_enabled = self.content_width > self.width
         self.max_scroll = max(0, self.content_width - self.width)
 
+        # Center the panel if it's smaller than max_width
+        if self.max_width is not None and self.width < self.max_width:
+            self.x = (self.max_width - self.width) // 2
+
+    def set_max_width(self, max_width: int):
+        """Update the maximum width and recalculate dimensions."""
+        self.max_width = max_width
+        self._calculate_dimensions()
+        self._recreate_ui()
+
+    def _recreate_ui(self):
+        """Recreate UI elements after dimension change."""
+        self.labels.clear()
+        self.batch = pyglet.graphics.Batch()
         self._create_ui()
 
     def _create_ui(self):
         """Create labels for each resource in horizontal layout."""
-        # Background with slight transparency
+        # Background
         self.background = Rectangle(
             self.x, self.y, self.width, self.height,
             color=(40, 40, 45),
             batch=self.batch
         )
 
-        # Border for visual separation
+        # Border
         self.border = Rectangle(
             self.x, self.y + self.height - self.border_height,
             self.width, self.border_height,
@@ -77,16 +117,21 @@ class ResourcePanel:
             batch=self.batch
         )
 
-        # Create labels for each resource
-        current_x = self.x + self.padding
+        # Calculate starting X to center content if not scrolling
+        if not self.scrolling_enabled:
+            # Center the content within the panel
+            total_content = self.content_width - self.padding  # Remove extra padding
+            start_x = self.x + (self.width - total_content) // 2 + self.padding
+        else:
+            start_x = self.x + self.padding
+
+        current_x = start_x
 
         for res_id, res_state in self.resource_manager.resources.items():
             definition = res_state.definition
-
-            # Store base X position for scrolling
             base_x = current_x
 
-            # Resource icon (larger, centered)
+            # Resource icon
             icon_label = Label(
                 definition.icon,
                 x=base_x + self.column_width // 2,
@@ -107,7 +152,7 @@ class ResourcePanel:
                 batch=self.batch
             )
 
-            # Current value (large, prominent)
+            # Current value
             value_label = Label(
                 "0",
                 x=base_x + self.column_width // 2,
@@ -119,8 +164,7 @@ class ResourcePanel:
             )
 
             # Production rate
-            rate_label = Label(
-                "+0.0/s",
+            rate_label = Label("+0.0/s",
                 x=base_x + self.column_width // 2,
                 y=self.y + self.rate_y_offset,
                 anchor_x='center',
@@ -141,12 +185,14 @@ class ResourcePanel:
 
     def _update_scroll_positions(self):
         """Update label positions based on scroll offset."""
+        if not self.scrolling_enabled:
+            return  # No scrolling needed, positions are fixed
+
         for res_id, labels in self.labels.items():
             base_x = labels['base_x']
             scrolled_x = base_x - self.scroll_x
             center_x = scrolled_x + self.column_width // 2
 
-            # Update X positions
             labels['icon'].x = center_x
             labels['name'].x = center_x
             labels['value'].x = center_x
@@ -154,7 +200,8 @@ class ResourcePanel:
 
     def update(self):
         """Update displayed values."""
-        self._update_scroll_positions()
+        if self.scrolling_enabled:
+            self._update_scroll_positions()
 
         for res_id, labels in self.labels.items():
             res_state = self.resource_manager.get(res_id)
@@ -177,7 +224,6 @@ class ResourcePanel:
                 rate_color = (150, 255, 150, 255) if rate >= 0 else (255, 150, 150, 255)
                 sign = "+" if rate >= 0 else ""
 
-                # Format rate
                 if abs(rate) >= 1000:
                     rate_text = f"{sign}{rate/1000:.1f}K/s"
                 elif abs(rate) >= 1:
@@ -190,18 +236,14 @@ class ResourcePanel:
 
     def draw(self):
         """Draw the resource panel with clipping."""
-        # Enable scissor test for clipping
         pyglet.gl.glEnable(pyglet.gl.GL_SCISSOR_TEST)
         pyglet.gl.glScissor(int(self.x), int(self.y), int(self.width), int(self.height))
 
         self.batch.draw()
 
-        # Draw scrollbar if needed
-        if self.max_scroll > 0:
+        # Only draw scrollbar if scrolling is enabled
+        if self.scrolling_enabled and self.max_scroll > 0:
             self._draw_scrollbar()
-
-        # Draw scroll indicators (arrows)
-        if self.max_scroll > 0:
             self._draw_scroll_indicators()
 
         pyglet.gl.glDisable(pyglet.gl.GL_SCISSOR_TEST)
@@ -210,7 +252,6 @@ class ResourcePanel:
         """Draw a horizontal scrollbar indicator."""
         scrollbar_y = self.y + self.scrollbar_y_offset
 
-        # Scrollbar track
         track = Rectangle(
             self.x + self.scrollbar_margin,
             scrollbar_y,
@@ -220,7 +261,6 @@ class ResourcePanel:
         )
         track.draw()
 
-        # Scrollbar thumb
         visible_ratio = self.width / self.content_width
         thumb_width = max(int(30 * self.UI_SCALE), int((self.width - 2 * self.scrollbar_margin) * visible_ratio))
 
@@ -238,7 +278,6 @@ class ResourcePanel:
 
     def _draw_scroll_indicators(self):
         """Draw left/right scroll indicators."""
-        # Left arrow (if can scroll left)
         if self.scroll_x > 0:
             left_arrow = Label(
                 "◀",
@@ -251,7 +290,6 @@ class ResourcePanel:
             )
             left_arrow.draw()
 
-        # Right arrow (if can scroll right)
         if self.scroll_x < self.max_scroll:
             right_arrow = Label(
                 "▶",
@@ -264,15 +302,22 @@ class ResourcePanel:
             )
             right_arrow.draw()
 
-
-    def on_mouse_scroll(self, x: int, y: int, scroll_x: float, scroll_y: float):
+    def on_mouse_scroll(self, x: int, y: int, scroll_x: float, scroll_y: float) -> bool:
         """Handle mouse scroll (horizontal scrolling)."""
-        # Only scroll if mouse is over the resource panel
         if not (self.x <= x <= self.x + self.width and self.y <= y <= self.y + self.height):
-            return False  # Return False to indicate scroll was not handled
+            return False
 
-        # Scroll horizontally - scaled scroll speed
+        # Only scroll if scrolling is enabled
+        if not self.scrolling_enabled:
+            return False
+
         scroll_amount = scroll_y * int(30 * self.UI_SCALE)
         self.scroll_x = max(0, min(self.max_scroll, self.scroll_x - scroll_amount))
 
-        return True  # Return True to indicate scroll was handled
+        return True
+
+    def on_resize(self, new_max_width: int, new_y: int = None):
+        """Handle window resize - recalculate auto-extend."""
+        if new_y is not None:
+            self.y = new_y
+        self.set_max_width(new_max_width)

@@ -2,7 +2,6 @@
 
 from typing import Dict, Tuple, Optional, Callable, Any
 
-
 class FieldManager:
     """Manages field state, validation, and interactions."""
 

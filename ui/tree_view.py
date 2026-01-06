@@ -1,6 +1,5 @@
-# ui/tree_view.py (continued and complete)
 from typing import Dict, List, Optional, Tuple, Set
-
+import math
 import pyglet
 from pyglet.text import Label
 from pyglet.shapes import Rectangle, Line
@@ -8,12 +7,11 @@ from pyglet.graphics import Batch
 
 from loader import Upgrade, UpgradeTree
 from ui.tooltip import Tooltip
+from config import get_config
 
 TREE_BG_COLOR = (25, 25, 30)
 EXCLUSIVE_GROUP_COLOR = (200, 150, 50)
 
-TREE_HORIZONTAL_SPACING = 80
-TREE_VERTICAL_SPACING = 40
 
 class Camera:
     """Handles zoom and pan transformations for the tree view."""
@@ -96,14 +94,27 @@ class Camera:
         self.viewport_width = width
         self.viewport_height = height
 
-
 class TreeNode:
     """Visual representation of an upgrade in the tree."""
-
     NODE_WIDTH = 220
     NODE_HEIGHT = 90
+    RADIAL_INITIAL_RADIUS = 150      # Distance from parent to children
+    RADIAL_RADIUS_INCREMENT = 160    # Additional distance for each level
+    RADIAL_MIN_ANGLE_SPACING = 0.2   # radians - minimum angle between siblings
+    RADIAL_MIN_NODE_SPACING = 25     # pixels - minimum gap between node edges
+    RADIAL_CHILD_SPREAD_ANGLE = math.pi * 0.8  # How wide children spread
 
     def __init__(self, upgrade: Upgrade, world_x: float, world_y: float):
+        # Load node dimensions from config
+        config = get_config()
+        NODE_WIDTH = config.get('ui.tree_node_width', 220)
+        NODE_HEIGHT = config.get('ui.tree_node_height', 90)
+        RADIAL_INITIAL_RADIUS = config.get('ui.radial_initial_radius')
+        RADIAL_RADIUS_INCREMENT = config.get('ui.radial_radius_increment')
+        RADIAL_MIN_ANGLE_SPACING = config.get('ui.radial_min_angle_spacing')
+        RADIAL_MIN_NODE_SPACING = config.get('ui.radial_min_node_spacing', )
+        RADIAL_CHILD_SPREAD_ANGLE = config.get('ui.radial_child_spread_angle', 0.8) * math.pi
+
         self.upgrade = upgrade
         self.world_x = world_x
         self.world_y = world_y
@@ -182,14 +193,13 @@ class TreeNode:
         self.is_available = is_available
         self.is_affordable = is_affordable
 
-
 class ConnectionLine:
-    """A line connecting two nodes in the tree."""
+    """A line connecting two nodes in the tree (from parent to child)."""
 
     def __init__(
         self,
-        from_node: TreeNode,
-        to_node: TreeNode,
+        from_node: TreeNode,  # Parent node
+        to_node: TreeNode,    # Child node
         is_or_connection: bool = False
     ):
         self.from_node = from_node
@@ -197,17 +207,44 @@ class ConnectionLine:
         self.is_or_connection = is_or_connection
 
     def get_points(self) -> List[Tuple[float, float]]:
-        """Get points for the connection line (may include intermediate points for curves)."""
-        start_x, start_y = self.from_node.get_right_center()
-        end_x, end_y = self.to_node.get_left_center()
+        """Get points for the connection line with curved path."""
+        start_x, start_y = self.from_node.get_center()
+        end_x, end_y = self.to_node.get_center()
 
-        # Calculate control points for a smooth curve
+        # Calculate direction vector
+        dx = end_x - start_x
+        dy = end_y - start_y
+        distance = math.sqrt(dx**2 + dy**2)
+
+        if distance < 1:
+            return [(start_x, start_y), (end_x, end_y)]
+
+        # Normalize direction
+        nx = dx / distance
+        ny = dy / distance
+
+        # Offset start and end points to node edges
+        node_radius = min(TreeNode.NODE_WIDTH, TreeNode.NODE_HEIGHT) / 2
+        start_x += nx * node_radius
+        start_y += ny * node_radius
+        end_x -= nx * node_radius
+        end_y -= ny * node_radius
+
+        # Calculate control point for curve (perpendicular offset)
         mid_x = (start_x + end_x) / 2
+        mid_y = (start_y + end_y) / 2
+
+        # Add slight curve by offsetting midpoint perpendicular to line
+        curve_amount = distance * 0.1  # 10% of distance
+        perp_x = -ny * curve_amount
+        perp_y = nx * curve_amount
+
+        curved_mid_x = mid_x + perp_x
+        curved_mid_y = mid_y + perp_y
 
         return [
             (start_x, start_y),
-            (mid_x, start_y),
-            (mid_x, end_y),
+            (curved_mid_x, curved_mid_y),
             (end_x, end_y)
         ]
 
@@ -257,6 +294,33 @@ class InteractiveTreeView:
         self.hovered_node_id: Optional[str] = None
         self.game_state = game_state
 
+    def _create_connections(self):
+        """Create connection lines between nodes based on requirements."""
+        self.connections = []  # Reset connections list
+
+        for upgrade_id, node in self.nodes.items():
+            upgrade = node.upgrade
+
+            for req in upgrade.requires:
+                if isinstance(req, list):
+                    # OR requirement - connect to all possibilities
+                    for sub_req in req:
+                        if sub_req in self.nodes:
+                            conn = ConnectionLine(
+                                self.nodes[sub_req],  # From parent
+                                node,                  # To child
+                                is_or_connection=True
+                            )
+                            self.connections.append(conn)
+                else:
+                    # Direct requirement
+                    if req in self.nodes:
+                        conn = ConnectionLine(
+                            self.nodes[req],  # From parent
+                            node               # To child
+                        )
+                        self.connections.append(conn)
+
     def _get_root_nodes(self) -> List[Upgrade]:
       """Find all root nodes (nodes with no requirements)."""
       roots = []
@@ -298,15 +362,9 @@ class InteractiveTreeView:
         return total_height
 
     def _layout_tree(self):
-        """Calculate positions for all nodes using a tree layout algorithm."""
+        """Calculate positions for all nodes using a local radial layout algorithm."""
         if not self.tree.upgrades:
             return
-
-        # Layout parameters
-        node_width = TreeNode.NODE_WIDTH
-        node_height = TreeNode.NODE_HEIGHT
-        h_spacing = 80
-        v_spacing = 20
 
         # Find root nodes
         roots = self._get_root_nodes()
@@ -314,116 +372,301 @@ class InteractiveTreeView:
             self._layout_tree_by_tier()
             return
 
-        # Calculate subtree heights for all nodes
-        subtree_heights: Dict[str, int] = {}
-        for upgrade in self.tree.upgrades.values():
-            self._calculate_subtree_height(upgrade.id, subtree_heights)
-
-        # Track which nodes have been positioned
-        positioned: Set[str] = set()
-
-        # Position nodes level by level
-        def position_node(upgrade: Upgrade, x: float, y_start: float, y_end: float) -> float:
-            """Position a node and its children. Returns the actual space used."""
-            if upgrade.id in positioned:
-                return y_start  # No space used if already positioned
-
-            # Calculate this node's y position (centered in its allocated space)
-            node_y = (y_start + y_end) / 2 - node_height / 2
-
-            # Create the node
-            self.nodes[upgrade.id] = TreeNode(upgrade, x, node_y)
-            positioned.add(upgrade.id)
-
-            # Get children that haven't been positioned yet
-            children = [c for c in self._get_children(upgrade.id) if c.id not in positioned]
-
-            if not children:
-                return y_start + node_height + v_spacing
-
-            # Calculate space for children
-            child_x = x + node_width + h_spacing
-            current_y = y_start
-
-            for child in children:
-                child_height = subtree_heights.get(child.id, 1)
-                child_space = child_height * (node_height + v_spacing)
-                actual_space_used = position_node(child, child_x, current_y, current_y + child_space)
-                current_y = actual_space_used
-
-            return current_y
-
-        # Position all root nodes and their subtrees
-        start_x = 0
-        current_y = 0
-
-        for root in roots:
-            if root.id not in positioned:
-                root_height = subtree_heights.get(root.id, 1)
-                root_space = root_height * (node_height + v_spacing)
-                actual_space = position_node(root, start_x, current_y, current_y + root_space)
-                current_y = actual_space + v_spacing  # Use actual space instead of allocated space
-
-        # Handle any orphaned nodes (nodes with requirements but not connected)
-        orphans = [u for u in self.tree.upgrades.values() if u.id not in positioned]
-        if orphans:
-            # Position orphans to the right
-            orphan_x = start_x + (node_width + h_spacing) * 3
-            orphan_y = 0
-            for orphan in orphans:
-                self.nodes[orphan.id] = TreeNode(orphan, orphan_x, orphan_y)
-                positioned.add(orphan.id)
-                orphan_y += node_height + v_spacing
-
-    def _layout_tree_by_tier(self):
-        """Fallback layout method using tiers."""
-        tiers: Dict[int, List[Upgrade]] = {}
-        for upgrade in self.tree.upgrades.values():
-            tier = upgrade.tier
-            if tier not in tiers:
-                tiers[tier] = []
-            tiers[tier].append(upgrade)
-
         node_width = TreeNode.NODE_WIDTH
         node_height = TreeNode.NODE_HEIGHT
-        h_spacing = TREE_HORIZONTAL_SPACING
-        v_spacing = TREE_VERTICAL_SPACING
 
-        for tier, upgrades in sorted(tiers.items()):
-            upgrades.sort(key=lambda u: (u.exclusive_group or '', u.id))
-            column_height = len(upgrades) * node_height + (len(upgrades) - 1) * v_spacing
-            start_y = -column_height / 2
-            tier_x = tier * (node_width + h_spacing)
+        # Track positioned nodes
+        positioned: Set[str] = set()
 
-            for i, upgrade in enumerate(upgrades):
-                node_y = start_y + i * (node_height + v_spacing)
-                node = TreeNode(upgrade, tier_x, node_y)
-                self.nodes[upgrade.id] = node
+        if len(roots) == 1:
+            # Single root - place at origin
+            root = roots[0]
+            self.nodes[root.id] = TreeNode(root, -node_width / 2, -node_height / 2)
+            positioned.add(root.id)
 
-    def _create_connections(self):
-        """Create connection lines between nodes based on requirements."""
-        for upgrade_id, node in self.nodes.items():
-            upgrade = node.upgrade
+            # Layout children radiating outward, initial direction is "right" (angle 0)
+            self._layout_children_from_parent(
+                parent_id=root.id,
+                parent_x=0,
+                parent_y=0,
+                parent_angle=0,  # Initial direction
+                positioned=positioned,
+                depth=0
+            )
+        else:
+            # Multiple roots - arrange in a circle first
+            num_roots = len(roots)
+            root_spacing_angle = (2 * math.pi) / num_roots
 
-            for req in upgrade.requires:
-                if isinstance(req, list):
-                    # OR requirement - connect to all possibilities
-                    for sub_req in req:
-                        if sub_req in self.nodes:
-                            conn = ConnectionLine(
-                                node,
-                                self.nodes[sub_req],
-                                is_or_connection=True
-                            )
-                            self.connections.append(conn)
-                else:
-                    # Direct requirement
-                    if req in self.nodes:
-                        conn = ConnectionLine(node, self.nodes[req])
-                        self.connections.append(conn)
+            for i, root in enumerate(roots):
+                angle = i * root_spacing_angle - math.pi / 2
+                root_x = TreeNode.RADIAL_INITIAL_RADIUS * 0.5 * math.cos(angle)
+                root_y = TreeNode.RADIAL_INITIAL_RADIUS * 0.5 * math.sin(angle)
+
+                self.nodes[root.id] = TreeNode(
+                    root,
+                    root_x - node_width / 2,
+                    root_y - node_height / 2
+                )
+                positioned.add(root.id)
+
+                # Layout children radiating outward from each root
+                self._layout_children_from_parent(
+                    parent_id=root.id,
+                    parent_x=root_x,
+                    parent_y=root_y,
+                    parent_angle=angle,  # Continue in same direction
+                    positioned=positioned,
+                    depth=0
+                )
+
+        # Resolve any remaining overlaps
+        self._resolve_overlaps()
+
+    def _layout_children_from_parent(
+        self,
+        parent_id: str,
+        parent_x: float,
+        parent_y: float,
+        parent_angle: float,
+        positioned: Set[str],
+        depth: int
+    ):
+        """
+        Layout children radiating outward from their parent node.
+
+        Args:
+            parent_id: ID of the parent node
+            parent_x: X coordinate of parent center
+            parent_y: Y coordinate of parent center
+            parent_angle: The angle from grandparent to parent (direction of flow)
+            positioned: Set of already positioned node IDs
+            depth: Current depth in tree (for radius calculation)
+        """
+        node_width = TreeNode.NODE_WIDTH
+        node_height = TreeNode.NODE_HEIGHT
+        node_diagonal = math.sqrt(node_width**2 + node_height**2)
+
+        # Get unpositioned children
+        children = [c for c in self._get_children(parent_id) if c.id not in positioned]
+        if not children:
+            return
+
+        num_children = len(children)
+
+        # Calculate radius for this level
+        radius = TreeNode.RADIAL_INITIAL_RADIUS + (depth * TreeNode.RADIAL_RADIUS_INCREMENT * 0.3)
+
+        # Calculate minimum angle needed for spacing
+        min_arc_length = node_diagonal + TreeNode.RADIAL_MIN_NODE_SPACING
+        min_angle_per_node = min_arc_length / radius
+        min_angle_per_node = max(TreeNode.RADIAL_MIN_ANGLE_SPACING, min_angle_per_node)
+
+        # Total angle needed for all children
+        total_angle_needed = num_children * min_angle_per_node
+
+        # Expand radius if children don't fit in spread angle
+        while total_angle_needed > TreeNode.RADIAL_CHILD_SPREAD_ANGLE:
+            radius += TreeNode.RADIAL_RADIUS_INCREMENT * 0.25
+            min_angle_per_node = max(TreeNode.RADIAL_MIN_ANGLE_SPACING, min_arc_length / radius)
+            total_angle_needed = num_children * min_angle_per_node
+
+        # Calculate spread angle (how wide children fan out)
+        if num_children == 1:
+            # Single child continues in same direction
+            spread_angle = 0
+            angles = [parent_angle]
+        else:
+            # Multiple children fan out symmetrically around parent's direction
+            spread_angle = min(TreeNode.RADIAL_CHILD_SPREAD_ANGLE, max(total_angle_needed, min_angle_per_node * num_children))
+
+            # Calculate angle step
+            angle_step = spread_angle / (num_children - 1) if num_children > 1 else 0
+
+            # Start angle (centered around parent_angle)
+            start_angle = parent_angle - spread_angle / 2
+
+            angles = [start_angle + i * angle_step for i in range(num_children)]
+
+        # Sort children by exclusive group to keep related nodes together
+        sorted_children = sorted(
+            children,
+            key=lambda c: (
+                c.exclusive_group or '',
+                c.tier,
+                c.id
+            )
+        )
+
+        # Position each child
+        for i, child in enumerate(sorted_children):
+            child_angle = angles[i]
+
+            # Calculate child position relative to parent
+            child_x = parent_x + radius * math.cos(child_angle)
+            child_y = parent_y + radius * math.sin(child_angle)
+
+            self.nodes[child.id] = TreeNode(
+                child,
+                child_x - node_width / 2,
+                child_y - node_height / 2
+            )
+            positioned.add(child.id)
+
+            # Recursively layout this child's children
+            self._layout_children_from_parent(
+                parent_id=child.id,
+                parent_x=child_x,
+                parent_y=child_y,
+                parent_angle=child_angle,  # Children continue in same direction
+                positioned=positioned,
+                depth=depth + 1
+            )
+
+    def _layout_radial_subtree(
+        self,
+        parent_id: str,
+        positioned: Set[str],
+        radius: float,
+        sector_start: float,
+        sector_end: float
+    ):
+        """Recursively layout a subtree within an angular sector."""
+        node_width = TreeNode.NODE_WIDTH
+        node_height = TreeNode.NODE_HEIGHT
+        node_diagonal = math.sqrt(node_width**2 + node_height**2)
+
+        children = [c for c in self._get_children(parent_id) if c.id not in positioned]
+        if not children:
+            return
+
+        # Calculate minimum angle for this radius
+        min_arc_length = node_diagonal + TreeNode.RADIAL_MIN_NODE_SPACING
+        min_angle_per_node = min_arc_length / radius
+        min_angle_per_node = max(TreeNode.RADIAL_MIN_ANGLE_SPACING, min_angle_per_node)
+
+        # Calculate subtree sizes for proportional spacing
+        subtree_sizes: Dict[str, int] = {}
+        for child in children:
+            subtree_sizes[child.id] = self._calculate_subtree_height(child.id, {})
+
+        total_size = sum(subtree_sizes.values())
+        sector_range = sector_end - sector_start
+
+        # Check if we need to expand radius to fit nodes
+        total_min_angle = len(children) * min_angle_per_node
+        actual_radius = radius
+
+        while total_min_angle > sector_range and actual_radius < radius + TreeNode.RADIAL_RADIUS_INCREMENT * 3:
+            actual_radius += TreeNode.RADIAL_RADIUS_INCREMENT * 0.25
+            min_arc_length = node_diagonal + TreeNode.RADIAL_MIN_NODE_SPACING
+            min_angle_per_node = min_arc_length / actual_radius
+            min_angle_per_node = max(TreeNode.RADIAL_MIN_ANGLE_SPACING, min_angle_per_node)
+            total_min_angle = len(children) * min_angle_per_node
+
+        # Position children proportionally within sector, respecting minimum spacing
+        current_angle = sector_start
+
+        for child in children:
+            # Calculate proportional sector size
+            proportional_size = (subtree_sizes[child.id] / total_size) * sector_range
+
+            # Ensure minimum spacing
+            child_sector_size = max(proportional_size, min_angle_per_node)
+
+            child_angle = current_angle + child_sector_size / 2
+
+            x = actual_radius * math.cos(child_angle) - node_width / 2
+            y = actual_radius * math.sin(child_angle) - node_height / 2
+
+            self.nodes[child.id] = TreeNode(child, x, y)
+            positioned.add(child.id)
+
+            # Recursively layout this child's subtree
+            self._layout_radial_subtree(
+                child.id,
+                positioned,
+                actual_radius + RADIAL_RADIUS_INCREMENT,
+                current_angle,
+                current_angle + child_sector_size
+            )
+
+            current_angle += child_sector_size
+
+    def _resolve_overlaps(self, max_iterations: int = 15):
+        """Post-process to resolve any remaining node overlaps."""
+        node_width = TreeNode.NODE_WIDTH
+        node_height = TreeNode.NODE_HEIGHT
+        min_spacing = TreeNode.RADIAL_MIN_NODE_SPACING
+
+        # Minimum distance between node centers
+        min_distance = math.sqrt(node_width**2 + node_height**2) + min_spacing
+
+        for iteration in range(max_iterations):
+            overlaps_found = False
+            max_overlap = 0
+
+            node_list = list(self.nodes.values())
+            for i, node_a in enumerate(node_list):
+                for node_b in node_list[i + 1:]:
+                    # Calculate distance between node centers
+                    ax, ay = node_a.get_center()
+                    bx, by = node_b.get_center()
+
+                    dx = bx - ax
+                    dy = by - ay
+                    distance = math.sqrt(dx**2 + dy**2)
+
+                    if distance < min_distance and distance > 0.01:
+                        overlaps_found = True
+                        overlap = min_distance - distance
+                        max_overlap = max(max_overlap, overlap)
+
+                        # Push nodes apart (stronger push for larger overlaps)
+                        push_factor = 0.5 + (overlap / min_distance) * 0.3
+                        push_x = (dx / distance) * overlap * push_factor
+                        push_y = (dy / distance) * overlap * push_factor
+
+                        node_a.world_x -= push_x / 2
+                        node_a.world_y -= push_y / 2
+                        node_b.world_x += push_x / 2
+                        node_b.world_y += push_y / 2
+                    elif distance <= 0.01:
+                        # Nodes at same position - push apart randomly
+                        overlaps_found = True
+                        random_angle = math.pi * 2 * (hash(node_a.upgrade.id) % 100) / 100
+                        push = min_distance / 2
+                        node_a.world_x -= push * math.cos(random_angle)
+                        node_a.world_y -= push * math.sin(random_angle)
+                        node_b.world_x += push * math.cos(random_angle)
+                        node_b.world_y += push * math.sin(random_angle)
+
+            if not overlaps_found or max_overlap < 1:
+                break
+
+
+    def _center_camera_on_tier(self, tier: int = 0):
+        """Center the camera on the root nodes."""
+        if not self.nodes:
+            return
+
+        # Find root nodes (tier 0 or nodes with no requirements)
+        root_nodes = [node for node in self.nodes.values() if not node.upgrade.requires]
+
+        if not root_nodes:
+            # Fallback to all nodes
+            self._center_camera()
+            return
+
+        # Calculate center of root nodes
+        total_x = sum(n.world_x + TreeNode.NODE_WIDTH / 2 for n in root_nodes)
+        total_y = sum(n.world_y + TreeNode.NODE_HEIGHT / 2 for n in root_nodes)
+
+        self.camera.x = total_x / len(root_nodes)
+        self.camera.y = total_y / len(root_nodes)
 
     def _center_camera(self):
-        """Center the camera on the tree content."""
+        """Center the camera on all tree content."""
         if not self.nodes:
             return
 
@@ -434,29 +677,6 @@ class InteractiveTreeView:
         max_y = max(n.world_y + TreeNode.NODE_HEIGHT for n in self.nodes.values())
 
         # Center camera
-        self.camera.x = (min_x + max_x) / 2
-        self.camera.y = (min_y + max_y) / 2
-
-    def _center_camera_on_tier(self, tier: int = 0):
-        """Center the camera on a specific tier."""
-        if not self.nodes:
-            return
-
-        # Find all nodes in the specified tier
-        tier_nodes = [node for node in self.nodes.values() if node.upgrade.tier == tier]
-
-        if not tier_nodes:
-            # If no nodes in that tier, fall back to centering on all nodes
-            self._center_camera()
-            return
-
-        # Calculate bounding box for this tier
-        min_x = min(n.world_x for n in tier_nodes)
-        max_x = max(n.world_x + TreeNode.NODE_WIDTH for n in tier_nodes)
-        min_y = min(n.world_y for n in tier_nodes)
-        max_y = max(n.world_y + TreeNode.NODE_HEIGHT for n in tier_nodes)
-
-        # Center camera on this tier
         self.camera.x = (min_x + max_x) / 2
         self.camera.y = (min_y + max_y) / 2
 

@@ -1,5 +1,3 @@
-# editor/editor_popup.py
-
 import pyglet
 from pyglet.text import Label
 from pyglet.shapes import Rectangle

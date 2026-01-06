@@ -1,5 +1,3 @@
-# ui/editor_properties.py
-
 import pyglet
 from pyglet.window import key
 from pyglet.text import Label

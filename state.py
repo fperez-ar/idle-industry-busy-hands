@@ -1,5 +1,3 @@
-# state.py
-
 from typing import Dict, Set, List, Union, Optional
 from loader import Upgrade, UpgradeTree
 from resources import ResourceManager

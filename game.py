@@ -1,9 +1,8 @@
-# game.py
-
 import pyglet
-from pyglet.window import Window, mouse, key
 from typing import Dict
+from pyglet.window import Window, mouse, key
 
+from config import load_config, get_config
 from loader import load_resources, load_upgrades, UpgradeTree, Upgrade
 from resources import ResourceManager
 from state import GameState
@@ -19,12 +18,16 @@ class Game(Window):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        # Load configuration first
+        self.game_config = load_config('data/config.yml')
+        print(f"Starting game with year: {self.game_config.get('time.start_year')}")
+
         # Load data
         self.resource_definitions = load_resources('data/resources.yml')
         self.trees, self.all_upgrades = load_upgrades('data/upgrades.yml')
 
-        # Initialize time system
-        self.time_system = TimeSystem(start_year=1800)
+        # Initialize time system (will use config internally)
+        self.time_system = TimeSystem()
 
         # Initialize systems
         self.resource_manager = ResourceManager(self.resource_definitions)
@@ -52,7 +55,6 @@ class Game(Window):
         # Layout constants
         sidebar_width = 300
         time_panel_height = 90
-        resource_panel_width = 1000
         resource_panel_height = 150
 
         # Tree selector (left side - full height)
@@ -72,14 +74,17 @@ class Game(Window):
             time_system=self.time_system
         )
 
-        # Resource panel (top-center of main area)
-        resource_panel_x = (self.width - resource_panel_width)//2
+        # Resource panel (auto-extending, centered at top)
+        # max_width is the available space (full width minus some margin)
+        available_width = self.width - 20  # 10px margin on each side
+
         self.resource_panel = ResourcePanel(
-            x=resource_panel_x,
+            x=10,  # Will be recalculated by auto-extend
             y=self.height - resource_panel_height - 10,
-            width=resource_panel_width,
+            width=1000,  # Base width (will auto-extend)
             height=resource_panel_height,
-            resource_manager=self.resource_manager
+            resource_manager=self.resource_manager,
+            max_width=available_width
         )
 
         # Tree views (main area)

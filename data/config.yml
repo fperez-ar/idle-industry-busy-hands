@@ -1,0 +1,25 @@
+# Game Configuration
+
+# Time settings
+time:
+  start_year: 0
+  years_per_real_second: 0.2  # How many in-game years pass per real second at 1x speed
+  default_speed: 1.0          # Default time multiplier
+  max_speed: 4.0              # Maximum time multiplier
+  min_speed: 0.25             # Minimum time multiplier
+
+# UI settings
+ui:
+  resource_panel_scale: 1.5
+  tree_node_width: 220
+  tree_node_height: 90
+  radial_initial_radius: 150      # Distance from parent to children
+  radial_radius_increment: 160    # Additional distance for each level
+  radial_min_angle_spacing: 0.2   # radians - minimum angle between siblings
+  radial_min_node_spacing: 25     # pixels - minimum gap between node edges
+  radial_child_spread_angle: 0.8  # How wide children spread (later multiplied by pi)
+
+# Game settings
+game:
+  auto_save_interval: 3600 # in seconds
+  show_debug_info: false

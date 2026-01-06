@@ -2,7 +2,6 @@
 
 from typing import Dict, List, Optional, Callable
 
-
 class ButtonManager:
     """Manages button state and click handling."""
 

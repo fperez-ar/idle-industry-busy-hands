@@ -1,5 +1,3 @@
-# ui/editor_canvas.py
-
 import pyglet
 from pyglet.text import Label
 from pyglet.shapes import Rectangle, Circle, Line

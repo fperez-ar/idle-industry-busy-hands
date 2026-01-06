@@ -1,16 +1,285 @@
 upgrades:
-  - id: test_id_1
-    name: test id
-    description:
-    tier: 0
-    year: 0
-    cost: []
-    effects:
-      - resource: philosophy
-        effect: add
-        value: 20
-      - resource: philosophy
-        effect: mult
-        value: 20
-    exclusive_group: null
-    requires: []
+- id: test_1
+  name: test 1
+  description: test 1
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: []
+
+- id: test_1a
+  name: test 1a
+  description: test 1a
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: test_1
+  requires: [test_1]
+
+- id: test_1b
+  name: test 1b
+  description: test 1b
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: test_1
+  requires: [test_1]
+
+- id: test_1b1
+  name: test 1b1
+  description: test 1b1
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_1b]
+
+- id: test_2
+  name: test 2
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_1]
+
+- id: test_3
+  name: test 3
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_2]
+
+- id: test_4
+  name: test 4
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_3]
+
+- id: test_5
+  name: test 5
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_4]
+
+- id: test_6
+  name: test 6
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_5]
+
+- id: test_7
+  name: test 7
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_6]
+
+- id: test_7
+  name: test 7
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_6]
+
+- id: test_8
+  name: test 8
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_7]
+
+- id: test_9
+  name: test 9
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_8]
+
+- id: test_10
+  name: test 10
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_9]
+
+- id: test_11
+  name: test 11
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_10]
+
+- id: test_12
+  name: test 12
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_11]
+
+- id: test_13
+  name: test 13
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_12]
+
+- id: test_14
+  name: test 14
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_13]
+
+- id: test_15
+  name: test 15
+  description: test
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: [test_14]

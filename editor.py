@@ -1,4 +1,3 @@
-# editor.py
 import pyglet
 from pyglet.window import Window, key, mouse
 from editor.editor_window import EditorWindow

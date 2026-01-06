@@ -5,7 +5,6 @@ from pyglet.text import Label
 from pyglet.shapes import Rectangle
 from typing import Tuple, Optional
 
-
 class UIColors:
     """Standard color palette for the editor."""
     BACKGROUND_DARK = (25, 25, 30)

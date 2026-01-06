@@ -1,4 +1,3 @@
-# ui/editor_window.py
 import pyglet
 from pyglet.window import Window, key, mouse
 from pyglet.text import Label

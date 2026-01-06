@@ -2,7 +2,6 @@
 
 from typing import Tuple, Union
 
-
 def validate_numeric_field(value_str: str,
                            is_integer: bool = False,
                            min_val: float = -100.0,
