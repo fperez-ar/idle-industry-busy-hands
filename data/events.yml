@@ -1,0 +1,44 @@
+events:
+  - id: test_event
+    title: test event 1
+    description: very nice description
+    icon: 🏢
+    trigger_type: upgrades # year
+    trigger_value: [
+      test_2,
+    ]  # year 0, or list of upgrade IDs
+    choices:
+      - id: bootstrap
+        text: test choice 1
+        description: test choice description
+        cost:
+          - resource: test_resource
+            amount: 1
+        effects:
+          - resource: test_resource
+            effect: add
+            value: 10
+
+
+      - id: partner_up
+        text: test choice 2
+        description: test choice description
+        cost: []
+        effects:
+          - resource: test_resource
+            effect: multiply
+            value: 2
+
+
+      - id: partner_up
+        text: test choice 2
+        description: test choice description
+        cost:
+          - resource: test_resource
+            amount: 10
+          - resource: test_resource
+            amount: 10
+        effects:
+          - resource: test_resource
+            effect: multiply
+            value: 2

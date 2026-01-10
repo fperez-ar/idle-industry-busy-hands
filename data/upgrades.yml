@@ -1,10 +1,6 @@
 trees:
-
   - id: test
     name: test
     description: test
     icon: '?'
-    filepath: data/test_tree.yml
-
-# Optional: upgrades can still be defined here if not using separate files
-# upgrades: []
+    filepath: data/test_tree_1.yml

@@ -2,14 +2,20 @@ import pyglet
 from typing import Dict
 from pyglet.window import Window, mouse, key
 
-from config import load_config, get_config
-from loader import load_resources, load_upgrades, UpgradeTree, Upgrade
-from resources import ResourceManager
 from state import GameState
+from config import load_config, get_config
+from loader import load_resources, load_upgrades, load_events
 from time_system import TimeSystem, TimeControlUI
-from ui.tree_view import InteractiveTreeView
-from ui.resource_panel import ResourcePanel
+from resource_manager import ResourceManager
+
+from definitions.upgrade import Upgrade
+from definitions.event import EventChoice
+
+
+from ui.event_popup import EventPopup
 from ui.tree_selector import TreeSelector
+from ui.resource_panel import ResourcePanel
+from ui.tree_view import InteractiveTreeView
 
 
 class Game(Window):
@@ -25,6 +31,7 @@ class Game(Window):
         # Load data
         self.resource_definitions = load_resources('data/resources.yml')
         self.trees, self.all_upgrades = load_upgrades('data/upgrades.yml')
+        self.event_manager = load_events('data/events.yml')
 
         # Initialize time system (will use config internally)
         self.time_system = TimeSystem()
@@ -35,7 +42,8 @@ class Game(Window):
             self.resource_manager,
             self.trees,
             self.all_upgrades,
-            self.time_system
+            self.time_system,
+            self.event_manager
         )
 
         # Add year change listener
@@ -49,6 +57,7 @@ class Game(Window):
 
         # Schedule update
         pyglet.clock.schedule_interval(self.update, 1/60.0)
+
 
     def _create_ui(self):
         """Initialize all UI components."""
@@ -86,6 +95,9 @@ class Game(Window):
             resource_manager=self.resource_manager,
             max_width=available_width
         )
+
+        # Event popup (overlay)
+        self.event_popup = EventPopup(self.width, self.height, self.time_system)
 
         # Tree views (main area)
         self.tree_views: Dict[str, InteractiveTreeView] = {}
@@ -142,6 +154,11 @@ class Game(Window):
                 self.resource_manager
             )
 
+        # Check for events
+        self.game_state.check_events()
+        if self.game_state.active_event and not self.event_popup.visible:
+            self.event_popup.show(self.game_state.active_event)
+
     def on_draw(self):
         """Render the game."""
         self.clear()
@@ -156,6 +173,10 @@ class Game(Window):
         self.resource_panel.draw()
         self.time_control.draw()
 
+        # Draw event popup (on top of everything)
+        if self.event_popup.visible:
+            self.event_popup.draw(lambda choice: self.resource_manager.can_afford(choice.cost))
+
         # Draw instructions
         instructions = pyglet.text.Label(
             "Left-click: Purchase | Right-drag: Pan | Scroll: Zoom | Space: Pause | ESC: Quit",
@@ -169,6 +190,16 @@ class Game(Window):
 
     def on_mouse_press(self, x: int, y: int, button: int, modifiers: int):
         """Handle mouse clicks."""
+        if self.event_popup.visible:
+          choice = self.event_popup.on_mouse_press(x, y)
+          if choice:
+              success = self.game_state.handle_event_choice(choice)
+              if success:
+                  self.event_popup.hide()
+              else:
+                  print(f"✗ Cannot afford choice: {choice.text}")
+          return
+
         # Check tree selector
         selected_tree = self.tree_selector.on_mouse_press(x, y)
         if selected_tree:
@@ -243,6 +274,11 @@ class Game(Window):
 
     def on_mouse_motion(self, x: int, y: int, dx: int, dy: int):
         """Handle mouse motion for tooltips."""
+
+        if self.event_popup.visible:
+            self.event_popup.on_mouse_motion(x, y)
+            return
+
         active_tree_id = self.tree_selector.active_tree_id
         if active_tree_id and active_tree_id in self.tree_views:
             self.tree_views[active_tree_id].on_mouse_motion(x, y)
@@ -298,6 +334,7 @@ class Game(Window):
         # S to show statistics
         elif symbol == key.S:
             stats = self.game_state.get_statistics()
+
             print("\n" + "="*50)
             print("📊 GAME STATISTICS")
             print("="*50)
@@ -306,6 +343,7 @@ class Game(Window):
             print(f"Available Upgrades: {stats['available_upgrades']}")
             if stats['next_unlock_year']:
                 print(f"Next Unlock: Year {stats['next_unlock_year']} ({stats['years_until_next_unlock']} years)")
+
             print("\nTree Progress:")
             for tree_id, tree_stat in stats['tree_statistics'].items():
                 tree_name = self.trees[tree_id].name
@@ -352,3 +390,5 @@ class Game(Window):
 
         # Recreate UI with new dimensions
         self._create_ui()
+
+        self.event_popup = EventPopup(width, height, self.time_system)

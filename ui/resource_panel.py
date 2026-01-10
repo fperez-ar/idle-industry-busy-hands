@@ -3,7 +3,8 @@ from pyglet.text import Label
 from pyglet.shapes import Rectangle
 from typing import Dict, Optional
 
-from resources import ResourceManager, ResourceState
+from resource_manager import ResourceManager
+from definitions.resource_state import ResourceState
 from config import get_config
 
 class ResourcePanel:

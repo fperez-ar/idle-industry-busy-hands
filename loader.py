@@ -2,53 +2,13 @@ import yaml
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Union
 
-@dataclass
-class ResourceDefinition:
-    """Defines a resource type available in the game."""
-    id: str
-    name: str
-    description: str
-    icon: str
-    color: List[int]
-    base_production: float
-    min_value: float = 0
-
-@dataclass
-class ResourceCost:
-    """A single resource cost for an upgrade."""
-    resource: str
-    amount: float
-
-@dataclass
-class Effect:
-    """A single effect that an upgrade applies to a resource."""
-    resource: str
-    effect: str  # "add" or "mult"
-    value: float
-
-@dataclass
-class Upgrade:
-    """A purchasable upgrade with costs and effects."""
-    id: str
-    tree: str
-    name: str
-    description: str
-    tier: int
-    year: int
-    cost: List[ResourceCost]
-    effects: List[Effect]
-    exclusive_group: Optional[str]
-    requires: List[Union[str, List[str]]]  # Supports AND/OR logic
-
-@dataclass
-class UpgradeTree:
-    """A collection of related upgrades."""
-    id: str
-    name: str
-    description: str
-    icon: str
-    upgrades: Dict[str, Upgrade] = field(default_factory=dict)
-
+from definitions.event import Event, EventChoice
+from event_manager import EventManager
+from definitions.upgrade import Upgrade
+from definitions.upgrade_tree import UpgradeTree
+from definitions.resource_cost import ResourceCost
+from definitions.resource_effect import ResourceEffect
+from definitions.resource_definition import ResourceDefinition
 
 def load_resources(filepath: str) -> Dict[str, ResourceDefinition]:
     """Load resource definitions from YAML."""
@@ -126,7 +86,6 @@ def load_upgrades(filepath: str) -> tuple[Dict[str, UpgradeTree], Dict[str, Upgr
 
     return trees, all_upgrades
 
-
 def _parse_upgrade(item: dict) -> Upgrade:
     """Parse a single upgrade from dictionary."""
     # Parse costs
@@ -140,7 +99,7 @@ def _parse_upgrade(item: dict) -> Upgrade:
     # Parse effects
     effects = []
     for effect_item in item.get('effects', []):
-        effects.append(Effect(
+        effects.append(ResourceEffect(
             resource=effect_item['resource'],
             effect=effect_item['effect'],
             value=effect_item['value']
@@ -160,3 +119,50 @@ def _parse_upgrade(item: dict) -> Upgrade:
     )
 
     return upgrade
+
+def load_events(filepath: str) -> EventManager:
+    """Load events from YAML file."""
+    with open(filepath, 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
+
+    events = {}
+    for event_data in data.get('events', []):
+        choices = []
+        for choice_data in event_data['choices']:
+            # Parse costs
+            costs = []
+            for cost_data in choice_data.get('cost', []):
+                costs.append(ResourceCost(
+                    resource=cost_data['resource'],
+                    amount=cost_data['amount']
+                ))
+
+            # Parse effects
+            effects = []
+            for effect_data in choice_data.get('effects', []):
+                effects.append(ResourceEffect(
+                    resource=effect_data['resource'],
+                    effect=effect_data['effect'],
+                    value=effect_data['value']
+                ))
+
+            choices.append(EventChoice(
+                id=choice_data['id'],
+                text=choice_data['text'],
+                description=choice_data['description'],
+                cost=costs,
+                effects=effects
+            ))
+
+        event = Event(
+            id=event_data['id'],
+            title=event_data['title'],
+            description=event_data['description'],
+            icon=event_data['icon'],
+            trigger_type=event_data['trigger_type'],
+            trigger_value=event_data['trigger_value'],
+            choices=choices
+        )
+        events[event.id] = event
+
+    return EventManager(events)

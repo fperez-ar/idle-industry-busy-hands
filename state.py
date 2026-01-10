@@ -1,7 +1,10 @@
-from typing import Dict, Set, List, Union, Optional
-from loader import Upgrade, UpgradeTree
-from resources import ResourceManager
+from typing import Dict, Union, List, Optional, Set
+from dataclasses import dataclass
+
 from time_system import TimeSystem
+from resource_manager import ResourceManager
+from loader import Upgrade, UpgradeTree
+from event_manager import EventManager, EventChoice
 
 
 class GameState:
@@ -12,7 +15,8 @@ class GameState:
         resource_manager: ResourceManager,
         trees: Dict[str, UpgradeTree],
         all_upgrades: Dict[str, Upgrade],
-        time_system: TimeSystem
+        time_system: TimeSystem,
+        event_manager: EventManager
     ):
         self.resource_manager = resource_manager
         self.trees = trees
@@ -20,6 +24,8 @@ class GameState:
         self.time_system = time_system
         self.owned_upgrades: Set[str] = set()
         self.selected_exclusive: Dict[str, str] = {}  # group_id -> upgrade_id
+        self.event_manager = event_manager
+        self.active_event: Optional[Event] = None
 
     @property
     def current_year(self) -> int:
@@ -330,4 +336,38 @@ class GameState:
             for callback in self.time_system.on_year_change:
                 callback(year)
 
+        return True
+
+    def check_events(self):
+        """Check for triggered events."""
+        if self.active_event:
+            return  # Already showing an event
+
+        event = self.event_manager.check_triggers(
+            self.current_year,
+            self.owned_upgrades
+        )
+        if event:
+            self.active_event = event
+            print(f"🎭 Event triggered: {event.title}")
+
+    def handle_event_choice(self, choice: EventChoice) -> bool:
+        """Process an event choice."""
+        # Check if can afford
+        if not self.resource_manager.can_afford(choice.cost):
+            return False
+
+        # Deduct costs
+        for cost in choice.cost:
+            self.resource_manager.spend(cost.resource, cost.amount)
+
+        # Apply effects
+        for effect in choice.effects:
+            self.resource_manager.apply_effect(effect)
+
+        # Clear active event
+        self.active_event = None
+        self.event_manager.clear_pending()
+
+        print(f"✓ Event choice selected: {choice.text}")
         return True

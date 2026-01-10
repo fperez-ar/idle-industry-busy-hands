@@ -133,7 +133,6 @@ class TimeControlUI:
             y=self.y + self.height - 20,
             anchor_x='center',
             font_size=16,
-            bold=True,
             color=(255, 255, 255, 255),
             batch=self.batch
         )
