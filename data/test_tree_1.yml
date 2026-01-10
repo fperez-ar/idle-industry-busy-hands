@@ -39,8 +39,8 @@ upgrades:
     amount: 1
   effects:
   - resource: test_resource
-    effect: add
-    value: 1
+    effect: mult
+    value: 2
   exclusive_group: test_1
   requires: [test_1]
 
@@ -51,11 +51,11 @@ upgrades:
   year: 0
   cost:
   - resource: test_resource
-    amount: 1
+    amount: 10
   effects:
   - resource: test_resource
-    effect: add
-    value: 1
+    effect: mult
+    value: 2
   exclusive_group: null
   requires: [test_1b]
 

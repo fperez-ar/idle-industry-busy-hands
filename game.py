@@ -118,6 +118,15 @@ class Game(Window):
         """Called when the year changes."""
         print(f"📅 Year changed to: {new_year}")
 
+        resources_unlocked = self.resource_manager.check_and_unlock_resources(
+            current_year=new_year,
+            owned_upgrades=self.game_state.owned_upgrades
+        )
+        # Recreate resource panel if resources were unlocked
+        if resources_unlocked:
+            self.resource_panel._calculate_dimensions()
+            self.resource_panel._recreate_ui()
+
         # Check if any new upgrades became available
         newly_unlocked = []
         for upgrade_id, upgrade in self.all_upgrades.items():
@@ -224,6 +233,16 @@ class Game(Window):
                 if success:
                     upgrade = self.all_upgrades.get(clicked_upgrade)
                     print(f"✓ Purchased: {upgrade.name if upgrade else clicked_upgrade}")
+
+                    # Check if this upgrade unlocks new resources
+                    resources_unlocked = self.resource_manager.check_and_unlock_resources(
+                        current_year=self.game_state.current_year,
+                        owned_upgrades=self.game_state.owned_upgrades
+                    )
+                        # Recreate resource panel if resources were unlocked
+                    if resources_unlocked:
+                        self.resource_panel._calculate_dimensions()
+                        self.resource_panel._recreate_ui()
                 else:
                     upgrade = self.all_upgrades.get(clicked_upgrade)
                     if upgrade:

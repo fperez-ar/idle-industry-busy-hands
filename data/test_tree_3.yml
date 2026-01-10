@@ -1,15 +1,51 @@
 upgrades:
-- id: test tree year
-  name: test tree year
-  description: test a
-  tier: 0
-  year: 0
-  cost:
-  - resource: test_resource
-    amount: 1
-  effects:
-  - resource: test_resource
-    effect: add
-    value: 1
-  exclusive_group: null
-  requires: []
+  - id: test tree year
+    name: test tree year
+    description:
+    tier: 1
+    year: 2
+    cost:
+    - resource: test_resource
+      amount: 1
+    effects:
+    - resource: test_resource
+      effect: add
+      value: 1
+    exclusive_group: null
+    requires: []
+
+  - id: test add
+    name: test add
+    description:
+    tier: 0
+    year: 0
+    cost: {}
+    effects:
+    - resource: test_resource
+      effect: add
+      value: 1
+    exclusive_group: null
+
+  - id: test mult
+    name: test MULT
+    description:
+    tier: 0
+    year: 0
+    cost: {}
+    effects:
+    - resource: test_resource
+      effect: mult
+      value: 2
+    exclusive_group: null
+
+  - id: test base add
+    name: test add to base
+    description:
+    tier: 0
+    year: 0
+    cost: {}
+    effects:
+    - resource: test_resource
+      effect: base_add
+      value: 2
+    exclusive_group: null

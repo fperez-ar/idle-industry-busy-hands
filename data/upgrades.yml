@@ -10,11 +10,11 @@ trees:
     description:
     icon: 'TT'
     filepath: data/test_tree_2.yml
-    requires: ['test_1',]  # Requires both upgrades
+    requires: ['test_1']
 
   - id: test_requires_year
     name: test requires year
     description:
     icon: 'Y'
-    year: 2
     filepath: data/test_tree_3.yml
+    unlock_year: 1

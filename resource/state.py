@@ -9,15 +9,15 @@ class ResourceState:
     definition: ResourceDefinition
     current_value: float = 0.0
     is_unlocked: bool = True
-
+    base: float = 0.0
     # Production modifiers
     base_additions: float = 0.0    # Sum of all additive effects
     total_multiplier: float = 1.0  # Product of all multiplicative effects
 
     def get_production_per_second(self) -> float:
         """Calculate net production rate."""
-        base = self.definition.base_production + self.base_additions
-        return base * self.total_multiplier
+        base = self.definition.base_production * self.total_multiplier + self.base_additions
+        return base
 
     def update(self, dt: float):
         """Update resource value based on production rate."""
@@ -37,5 +37,7 @@ class ResourceState:
         """Apply a single effect to this resource."""
         if effect.effect == "add":
             self.base_additions += effect.value
+        if effect.effect == "base_add":
+            self.definition.base_production += effect.value
         elif effect.effect == "mult":
-            self.total_multiplier *= effect.value
+            self.total_multiplier += effect.value

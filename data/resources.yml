@@ -5,13 +5,23 @@ resources:
     description: test points
     icon: T
     color: [255, 128, 0]
-    base_production: 0.2
+    base_production: 1
     min_value: 1
 
   - id: test_resource_2
-    name: Test
-    description: test points
+    name: test resource 2
+    description: unlock based on upgrade
     icon: TT
     color: [255, 128, 0]
-    base_production: 0.2
+    base_production: 0.5
+    min_value: 0.2
+    requires: [test_1]
+
+  - id: test_resource_y
+    name: Test
+    description: test points
+    icon: TY
+    color: [255, 60, 0]
+    base_production: 1
     min_value: -100
+    unlock_year: 5

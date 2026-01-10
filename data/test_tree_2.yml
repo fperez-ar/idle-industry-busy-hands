@@ -6,11 +6,11 @@ upgrades:
   year: 0
   cost:
   - resource: test_resource
-    amount: 1
+    amount: 10
   effects:
   - resource: test_resource
-    effect: add
-    value: 1
+    effect: mult
+    value: 10
   exclusive_group: null
   requires: []
 
@@ -154,7 +154,7 @@ upgrades:
   name: test
   description: test
   tier: 0
-  year: 0
+  year: 20
   cost:
   - resource: test_resource
     amount: 1

@@ -85,8 +85,11 @@ class ResourceManager:
         if res:
             res.apply_effect(effect)
 
-    def check_and_unlock_resources(self, current_year: int, owned_upgrades: Set[str]):
-        """Check and unlock dynamic resources based on year and upgrades."""
+    def check_and_unlock_resources(self, current_year: int, owned_upgrades: Set[str]) -> bool:
+        """Check and unlock dynamic resources based on year and upgrades.
+        Returns True if any resource was unlocked."""
+        any_unlocked = False
+
         for res_id, res_state in self.resources.items():
             if res_state.is_unlocked:
                 continue  # Already unlocked
@@ -94,7 +97,7 @@ class ResourceManager:
             definition = res_state.definition
 
             # Check year requirement
-            if definition.unlock_year > current_year:
+            if definition.unlock_year < current_year:
                 continue
 
             # Check upgrade requirements
@@ -108,7 +111,11 @@ class ResourceManager:
 
             # Unlock the resource
             res_state.is_unlocked = True
+            any_unlocked = True
             print(f"🔓 Resource unlocked: {definition.name}")
+
+        return any_unlocked
+
 
     def get_unlocked_resources(self) -> Dict[str, ResourceState]:
         """Get only unlocked resources."""
