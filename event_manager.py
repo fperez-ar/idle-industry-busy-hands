@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
-from definitions.resource_cost import ResourceCost
-from definitions.resource_effect import ResourceEffect
+from resource.cost import ResourceCost
+from resource.effect import ResourceEffect
 from definitions.event import EventChoice, Event
 
 class EventManager:

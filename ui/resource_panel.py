@@ -4,7 +4,7 @@ from pyglet.shapes import Rectangle
 from typing import Dict, Optional
 
 from resource_manager import ResourceManager
-from definitions.resource_state import ResourceState
+from resource.state import ResourceState
 from config import get_config
 
 class ResourcePanel:

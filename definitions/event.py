@@ -1,7 +1,7 @@
 from typing import List
 from dataclasses import dataclass
-from definitions.resource_cost import ResourceCost
-from definitions.resource_effect import ResourceEffect
+from resource.cost import ResourceCost
+from resource.effect import ResourceEffect
 
 @dataclass
 class EventChoice:

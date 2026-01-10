@@ -1,7 +1,7 @@
 from typing import List, Union, List, Optional
 from dataclasses import dataclass
-from .resource_cost import ResourceCost
-from .resource_effect import ResourceEffect
+from resource.cost import ResourceCost
+from resource.effect import ResourceEffect
 
 @dataclass
 class Upgrade:

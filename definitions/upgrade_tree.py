@@ -2,7 +2,7 @@ from typing import Dict
 from dataclasses import dataclass, field
 
 from .upgrade import Upgrade
-from .resource_definition import ResourceDefinition
+from resource.definition import ResourceDefinition
 
 @dataclass
 class UpgradeTree:

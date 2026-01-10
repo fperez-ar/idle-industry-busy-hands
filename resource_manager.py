@@ -3,9 +3,9 @@ from dataclasses import dataclass, field
 from typing import Dict, Set
 
 from definitions.upgrade import Upgrade
-from definitions.resource_state import ResourceState
-from definitions.resource_effect import ResourceEffect
-from definitions.resource_definition import ResourceDefinition
+from resource.state import ResourceState
+from resource.effect import ResourceEffect
+from resource.definition import ResourceDefinition
 
 class ResourceManager:
     """Manages all resources and their interactions."""

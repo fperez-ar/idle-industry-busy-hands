@@ -6,9 +6,9 @@ from definitions.event import Event, EventChoice
 from event_manager import EventManager
 from definitions.upgrade import Upgrade
 from definitions.upgrade_tree import UpgradeTree
-from definitions.resource_cost import ResourceCost
-from definitions.resource_effect import ResourceEffect
-from definitions.resource_definition import ResourceDefinition
+from resource.cost import ResourceCost
+from resource.effect import ResourceEffect
+from resource.definition import ResourceDefinition
 
 def load_resources(filepath: str) -> Dict[str, ResourceDefinition]:
     """Load resource definitions from YAML."""

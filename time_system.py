@@ -1,3 +1,4 @@
+from math import floor
 from typing import Callable, List, Optional
 from config import get_config
 
@@ -55,10 +56,12 @@ class TimeSystem:
         old_year = self.current_year
         self.year_progress += year_delta
 
-        # Check if we've completed a year
-        while self.year_progress >= 1.0:
-            self.year_progress -= 1.0
-            self.current_year += 1
+        # Calculate how many complete years have passed
+        if self.year_progress >= 1.0:
+            years_completed = floor(self.year_progress)
+            self.current_year += years_completed
+            self.year_progress = self.year_progress % 1.0  # Modulo to get fractional part
+
 
         # Notify listeners if year changed
         if self.current_year != old_year:

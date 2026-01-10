@@ -1,7 +1,7 @@
 from typing import List
 from dataclasses import dataclass
-from .resource_effect import ResourceEffect
-from .resource_definition import ResourceDefinition
+from resource.effect import ResourceEffect
+from resource.definition import ResourceDefinition
 
 @dataclass
 class ResourceState:
