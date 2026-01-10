@@ -33,7 +33,7 @@ def sample_upgrades():
         'upgrade_1': Upgrade(
             id='upgrade_1',
             name='First Upgrade',
-            tree='',
+            tree='test_tree',
             description='Test',
             tier=0,
             year=0,
@@ -45,8 +45,8 @@ def sample_upgrades():
         'upgrade_2': Upgrade(
             id='upgrade_2',
             name='Second Upgrade',
-            tree='',
-            description='Test',
+            tree='test_tree',
+            description='required upgrade',
             tier=1,
             year=0,
             cost=[ResourceCost(resource='money', amount=100.0)],
@@ -57,8 +57,8 @@ def sample_upgrades():
         'upgrade_3': Upgrade(
             id='upgrade_3',
             name='Future Upgrade',
-            tree='',
-            description='Test',
+            tree='test_tree',
+            description='requires year',
             tier=0,
             year=5,
             cost=[ResourceCost(resource='money', amount=200.0)],
@@ -69,8 +69,8 @@ def sample_upgrades():
         'exclusive_a': Upgrade(
             id='exclusive_a',
             name='Exclusive A',
-            tree='',
-            description='Test',
+            tree='test_tree',
+            description='test exclusive group',
             tier=0,
             year=0,
             cost=[ResourceCost(resource='money', amount=50.0)],
@@ -81,8 +81,8 @@ def sample_upgrades():
         'exclusive_b': Upgrade(
             id='exclusive_b',
             name='Exclusive B',
-            tree='',
-            description='Test',
+            tree='test_tree',
+            description='test exclusive group',
             tier=0,
             year=0,
             cost=[ResourceCost(resource='money', amount=50.0)],
