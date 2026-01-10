@@ -26,11 +26,11 @@ events:
         cost: []
         effects:
           - resource: test_resource
-            effect: multiply
-            value: 2
+            effect: mult
+            value: 1.5
 
 
-      - id: partner_up
+      - id: partner_upa
         text: test choice 2
         description: test choice description
         cost:
@@ -40,5 +40,5 @@ events:
             amount: 10
         effects:
           - resource: test_resource
-            effect: multiply
+            effect: mult
             value: 2

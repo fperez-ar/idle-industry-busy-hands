@@ -105,7 +105,6 @@ class GameConfig:
 # Global config instance
 _config: Optional[GameConfig] = None
 
-
 def get_config() -> GameConfig:
     """Get the global configuration instance."""
     global _config

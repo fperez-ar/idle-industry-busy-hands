@@ -371,3 +371,137 @@ class GameState:
 
         print(f"✓ Event choice selected: {choice.text}")
         return True
+
+    def check_tree_requirements_met(self, tree: UpgradeTree) -> bool:
+        """Check if all requirements for a tree are met."""
+        # Check prerequisite upgrades
+        for req in tree.requires:
+            if isinstance(req, list):
+                # OR condition: at least one must be owned
+                if not any(r in self.owned_upgrades for r in req):
+                    return False
+            else:
+                # Direct requirement: must be owned
+                if req not in self.owned_upgrades:
+                    return False
+
+        # Check year requirement
+        if tree.year > self.current_year:
+            return False
+
+        return True
+
+    def is_tree_unlocked(self, tree_id: str) -> bool:
+        """Check if a tree is unlocked."""
+        tree = self.trees.get(tree_id)
+        if not tree:
+            return False
+
+        return self.check_tree_requirements_met(tree)
+
+    def get_unlocked_trees(self) -> List[str]:
+        """Get list of unlocked tree IDs."""
+        unlocked = []
+        for tree_id, tree in self.trees.items():
+            if self.is_tree_unlocked(tree_id):
+                unlocked.append(tree_id)
+        return unlocked
+
+    def get_locked_trees(self) -> List[str]:
+        """Get list of locked tree IDs."""
+        locked = []
+        for tree_id, tree in self.trees.items():
+            if not self.is_tree_unlocked(tree_id):
+                locked.append(tree_id)
+        return locked
+
+    def get_tree_status(self, tree_id: str) -> str:
+        """Get a human-readable status for a tree."""
+        tree = self.trees.get(tree_id)
+        if not tree:
+            return "unknown"
+
+        # Check year lock
+        if tree.year > self.current_year:
+            return f"locked_year_{tree.year}"
+
+        # Check requirements
+        if not self.check_tree_requirements_met(tree):
+            return "requirements_not_met"
+
+        return "unlocked"
+
+    def get_blocking_tree_requirements(self, tree_id: str) -> List[str]:
+        """Get list of requirement IDs that are blocking this tree."""
+        tree = self.trees.get(tree_id)
+        if not tree:
+            return []
+
+        blocking = []
+
+        for req in tree.requires:
+            if isinstance(req, list):
+                # OR condition - check if ANY are satisfied
+                if not any(r in self.owned_upgrades for r in req):
+                    blocking.extend([r for r in req if r not in self.owned_upgrades])
+            else:
+                # Direct requirement
+                if req not in self.owned_upgrades:
+                    blocking.append(req)
+
+        return blocking
+
+    def is_upgrade_available(self, upgrade_id: str) -> bool:
+        """Check if an upgrade can be purchased (requirements met, not owned, group available, tree unlocked)."""
+        if upgrade_id in self.owned_upgrades:
+            return False
+
+        upgrade = self.all_upgrades.get(upgrade_id)
+        if not upgrade:
+            return False
+
+        # NEW: Check if the upgrade's tree is unlocked
+        if not self.is_tree_unlocked(upgrade.tree):
+            return False
+
+        if not self.check_requirements_met(upgrade):
+            return False
+
+        if not self.check_exclusive_group_available(upgrade):
+            return False
+
+        return True
+
+    def get_statistics(self) -> Dict[str, any]:
+        """Get game statistics."""
+        total_upgrades = len(self.all_upgrades)
+        owned_count = len(self.owned_upgrades)
+        available_count = len(self.get_available_upgrade_ids())
+
+        # Count upgrades by tree
+        tree_stats = {}
+        for tree_id, tree in self.trees.items():
+            tree_total = len(tree.upgrades)
+            tree_owned = sum(1 for uid in tree.upgrades if uid in self.owned_upgrades)
+            tree_stats[tree_id] = {
+                'total': tree_total,
+                'owned': tree_owned,
+                'percentage': (tree_owned / tree_total * 100) if tree_total > 0 else 0,
+                'unlocked': self.is_tree_unlocked(tree_id)  # NEW: Add unlock status
+            }
+
+        # Get next milestone year
+        next_year = self.get_next_year_with_upgrades()
+
+        return {
+            'current_year': self.current_year,
+            'total_upgrades': total_upgrades,
+            'owned_upgrades': owned_count,
+            'available_upgrades': available_count,
+            'completion_percentage': (owned_count / total_upgrades * 100) if total_upgrades > 0 else 0,
+            'tree_statistics': tree_stats,
+            'next_unlock_year': next_year,
+            'years_until_next_unlock': (next_year - self.current_year) if next_year else None,
+            'unlocked_trees': len(self.get_unlocked_trees()),  # NEW
+            'total_trees': len(self.trees)  # NEW
+        }

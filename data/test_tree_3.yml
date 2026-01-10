@@ -1,0 +1,15 @@
+upgrades:
+- id: test tree year
+  name: test tree year
+  description: test a
+  tier: 0
+  year: 0
+  cost:
+  - resource: test_resource
+    amount: 1
+  effects:
+  - resource: test_resource
+    effect: add
+    value: 1
+  exclusive_group: null
+  requires: []

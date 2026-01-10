@@ -11,13 +11,19 @@ class ResourceManager:
     """Manages all resources and their interactions."""
 
     def __init__(self, resource_definitions: Dict[str, ResourceDefinition]):
-        self.resources: Dict[str, ResourceState] = {}
+          self.definitions = resource_definitions
+          self.resources: Dict[str, ResourceState] = {}
 
-        for res_id, definition in resource_definitions.items():
-            self.resources[res_id] = ResourceState(
-                definition=definition,
-                current_value=definition.base_production * 10  # Starting amount
-            )
+          # Initialize all resources
+          for res_id, definition in resource_definitions.items():
+              initial_value = definition.base_production * 10
+              is_unlocked = not definition.is_dynamic  # Use the property
+
+              self.resources[res_id] = ResourceState(
+                  definition=definition,
+                  current_value=initial_value,
+                  is_unlocked=is_unlocked
+              )
 
     def get(self, resource_id: str) -> ResourceState:
         """Get a specific resource state."""
@@ -78,3 +84,44 @@ class ResourceManager:
         res = self.resources.get(effect.resource)
         if res:
             res.apply_effect(effect)
+
+    def check_and_unlock_resources(self, current_year: int, owned_upgrades: Set[str]):
+        """Check and unlock dynamic resources based on year and upgrades."""
+        for res_id, res_state in self.resources.items():
+            if res_state.is_unlocked:
+                continue  # Already unlocked
+
+            definition = res_state.definition
+
+            # Check year requirement
+            if definition.unlock_year > current_year:
+                continue
+
+            # Check upgrade requirements
+            if definition.requires:
+                requirements_met = all(
+                    upgrade_id in owned_upgrades
+                    for upgrade_id in definition.requires
+                )
+                if not requirements_met:
+                    continue
+
+            # Unlock the resource
+            res_state.is_unlocked = True
+            print(f"🔓 Resource unlocked: {definition.name}")
+
+    def get_unlocked_resources(self) -> Dict[str, ResourceState]:
+        """Get only unlocked resources."""
+        return {
+            res_id: res_state
+            for res_id, res_state in self.resources.items()
+            if res_state.is_unlocked
+        }
+
+    def get_locked_resources(self) -> Dict[str, ResourceState]:
+        """Get only locked resources."""
+        return {
+            res_id: res_state
+            for res_id, res_state in self.resources.items()
+            if not res_state.is_unlocked
+        }

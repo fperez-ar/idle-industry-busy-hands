@@ -150,22 +150,6 @@ class TreeNode:
             self.world_y + self.NODE_HEIGHT / 2
         )
 
-    @DeprecationWarning
-    def get_top_center(self) -> Tuple[float, float]:
-        """Get top center point for incoming connections."""
-        return (
-            self.world_x + self.NODE_WIDTH / 2,
-            self.world_y + self.NODE_HEIGHT
-        )
-
-    @DeprecationWarning
-    def get_bottom_center(self) -> Tuple[float, float]:
-        """Get bottom center point for outgoing connections."""
-        return (
-            self.world_x + self.NODE_WIDTH / 2,
-            self.world_y
-        )
-
     def get_left_center(self) -> Tuple[float, float]:
         """Get left center point for incoming connections."""
         return (
@@ -369,7 +353,7 @@ class InteractiveTreeView:
         # Find root nodes
         roots = self._get_root_nodes()
         if not roots:
-            self._layout_tree_by_tier()
+
             return
 
         node_width = TreeNode.NODE_WIDTH

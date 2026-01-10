@@ -24,7 +24,9 @@ def load_resources(filepath: str) -> Dict[str, ResourceDefinition]:
             icon=item.get('icon', ''),
             color=item.get('color', [255, 255, 255]),
             base_production=item.get('base_production', 0.0),
-            min_value=item.get('min_value', 0)
+            min_value=item.get('min_value', 0),
+            unlock_year=item.get('unlock_year', 0),
+            requires=item.get('requires', [])
         )
         resources[res.id] = res
     return resources
@@ -41,7 +43,9 @@ def load_upgrades(filepath: str) -> tuple[Dict[str, UpgradeTree], Dict[str, Upgr
             id=item['id'],
             name=item['name'],
             description=item.get('description', ''),
-            icon=item.get('icon', '')
+            icon=item.get('icon', ''),
+            requires=item.get('requires', []),
+            year=item.get('year', 0)
         )
         trees[tree.id] = tree
 

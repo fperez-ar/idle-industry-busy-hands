@@ -7,3 +7,11 @@ resources:
     color: [255, 128, 0]
     base_production: 0.2
     min_value: 1
+
+  - id: test_resource_2
+    name: Test
+    description: test points
+    icon: TT
+    color: [255, 128, 0]
+    base_production: 0.2
+    min_value: -100

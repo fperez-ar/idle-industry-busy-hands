@@ -8,6 +8,7 @@ class ResourceState:
     """Tracks current value and production modifiers for a single resource."""
     definition: ResourceDefinition
     current_value: float = 0.0
+    is_unlocked: bool = True
 
     # Production modifiers
     base_additions: float = 0.0    # Sum of all additive effects

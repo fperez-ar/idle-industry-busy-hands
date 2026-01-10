@@ -68,7 +68,8 @@ class ResourcePanel:
 
     def _calculate_dimensions(self):
         """Calculate content width and actual panel width."""
-        num_resources = len(self.resource_manager.resources)
+        unlocked_resources = self.resource_manager.get_unlocked_resources()
+        num_resources = len(unlocked_resources)
 
         # Calculate required content width
         self.content_width = (num_resources * self.column_width) + ((num_resources + 1) * self.padding)
@@ -128,7 +129,8 @@ class ResourcePanel:
 
         current_x = start_x
 
-        for res_id, res_state in self.resource_manager.resources.items():
+        unlocked_resources = self.resource_manager.get_unlocked_resources()
+        for res_id, res_state in unlocked_resources.items():
             definition = res_state.definition
             base_x = current_x
 

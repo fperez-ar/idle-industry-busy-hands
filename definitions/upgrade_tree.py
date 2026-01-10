@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List, Union
 from dataclasses import dataclass, field
 
 from .upgrade import Upgrade
@@ -12,3 +12,5 @@ class UpgradeTree:
     icon: str
     description: str
     upgrades: Dict[str, Upgrade] = field(default_factory=dict)
+    requires: List[Union[str, List[str]]] = field(default_factory=list)
+    year: int = 0
